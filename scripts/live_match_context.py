@@ -75,7 +75,7 @@ def read_provider(provider, fixtures):
     try:
         return provider(fixtures)
     except Exception as error:
-        logger.warning("%s 조회 실패 (%s)", provider.__name__, type(error).__name__)
+        logger.warning("%s 조회 실패 (%s)", provider.__module__, type(error).__name__)
         return {}
 
 

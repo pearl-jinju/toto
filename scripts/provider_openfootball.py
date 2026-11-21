@@ -85,7 +85,9 @@ def fetch_events(fixtures):
         for row in rows:
             if not all(row.get(key) for key in ("date", "team1", "team2")):
                 continue
-            score = scores((row.get("score") or {}).get("ft"))
+            raw_score = row.get("score")
+            score = scores(raw_score.get("ft")) if isinstance(raw_score, dict) else scores(raw_score)
+            half = scores(raw_score.get("ht")) if isinstance(raw_score, dict) else None
             if score is None:
                 continue
             exact_time = row.get("time") if not date_only else None
@@ -97,7 +99,7 @@ def fetch_events(fixtures):
                 "provider": "openfootball", "league": league, "id": f"{row['date']}|{row['team1']}|{row['team2']}",
                 "start": local.astimezone(timezone.utc).isoformat(), "dateOnly": not bool(exact_time),
                 "home": row["team1"], "away": row["team2"], "complete": True,
-                "score": score, "half": scores((row.get("score") or {}).get("ht")),
+                "score": score, "half": half,
                 "source": ["OpenFootball · 공개 경기 이력", f"{SOURCE}/{path}"],
             })
             coverage[league] = "verified"

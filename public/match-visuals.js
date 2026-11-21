@@ -3,7 +3,7 @@ const weatherMotions = {
   calm:"standing", rain:"umbrella", wind:"bracing", fog:"looking", frost:"bundled", heat:"cooling",
   indoor:"courtside", roof:"looking", unknown:"looking"
 };
-const mascotFiles = Object.fromEntries([...new Set(["perched",...scoringMotions,...Object.values(weatherMotions)])].map(pose =>
+const mascotFiles = Object.fromEntries([...new Set(["perched","checking","form-review",...scoringMotions,...Object.values(weatherMotions)])].map(pose =>
   [pose,new URL(`./assets/mascot/sun-moon-${pose}.png`,import.meta.url).href]
 ));
 const conditions = {

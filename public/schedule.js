@@ -98,7 +98,10 @@ function quickAnalysis(match, detail, roundData, opened, auto, standings, {inOve
   if (extra) sourceLinks.push(...extra.sources.map(([label, url]) => sourceLink(label, url)));
   sourceLinks.push(...teamSymbolSources(match.home,match.away).map(([label,url])=>sourceLink(label,url)));
 
+  const contextPanels = teamContextPanels(match, roundData, {detail, editorial:extra, opened, auto, standings, detailSponsor});
+
   return `<div class="fixture-analysis">
+    ${inOverlay ? "" : contextPanels}
     ${summary ? `<p class="quick-summary">${text(summary)}</p>` : ""}
     ${comparison.length ? `<dl class="quick-comparison">${comparison.map(([label, home, away]) =>
       `<div><dt>${text(label)}</dt><dd><strong>${text(home)}</strong><span>vs</span><strong>${text(away)}</strong></dd></div>`).join("")}</dl>` : ""}
@@ -109,7 +112,7 @@ function quickAnalysis(match, detail, roundData, opened, auto, standings, {inOve
     </dl>
     ${quickOdds}
     ${!summary && !match.score && !quickOdds ? '<p class="muted">아직 확인된 배당과 팀 비교 자료가 없습니다.</p>' : ""}
-    ${teamContextPanels(match, roundData, {detail, editorial:extra, opened, auto, standings, detailSponsor})}
+    ${inOverlay ? contextPanels : ""}
     <div class="quick-actions">${detail && !inOverlay ? `<a class="quick-detail" href="?match=${text(detail.id)}">상세 브리핑</a>` : ""}
       <details class="fixture-sources" data-keep-open="sources"${opened.has("sources") ? " open" : ""}><summary>출처</summary><div>${sourceLinks.join("")}</div></details></div>
   </div>`;

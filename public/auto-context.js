@@ -1,5 +1,5 @@
 import { escapeHtml as escape, isSource, sourceCredit, sourceCredits, sourceLink } from "./source-links.js";
-import { mascotFigure, scoringPose, scoringWord, weatherHint, weatherPanel, weatherVisual } from "./match-visuals.js";
+import { mascotArt, mascotFigure, scoringPose, scoringWord, weatherHint, weatherPanel, weatherVisual } from "./match-visuals.js";
 
 const displayDate = new Intl.DateTimeFormat("ko-KR", {
   timeZone: "Asia/Seoul",
@@ -234,14 +234,27 @@ export async function fetchAutomaticContext(roundId) {
 
 function renderResult(result, archived) {
   const names = {home:"홈승",draw:"무승부",away:"원정승"};
-  const outcomes = (result?.outcomes ?? []).filter(({side,percent})=>Object.hasOwn(names,side) &&
-    Number.isInteger(percent) && percent >= 0 && percent <= 100);
+  const outcomes = (Array.isArray(result?.outcomes) ? result.outcomes : []).filter(outcome =>
+    Object.hasOwn(names,outcome?.side) && Number.isInteger(outcome.percent) &&
+    outcome.percent >= 0 && outcome.percent <= 100);
   if (outcomes.length < 2) return "";
-  return `<section class="result-outlook" aria-label="승부 전망">
-    <p class="result-outlook-label"><strong>승부 전망</strong> <span>${escape(result.label)}${archived ? " · 경기 전 기록 기준" : ""}</span></p>
-    ${analysisLine(result.headline,"","result-outlook-headline")}
+  const unique = new Set(outcomes.map(({side})=>side)).size === outcomes.length;
+  const complete = unique && outcomes.reduce((sum,{percent})=>sum + percent,0) === 100;
+  const [lead,runnerUp] = [...outcomes].sort((first,second)=>second.percent - first.percent);
+  const edge = complete && lead.side !== "draw" && lead.percent - runnerUp.percent >= 5 ? lead.side : "neutral";
+  return `<section class="result-outlook" data-edge="${edge}" aria-label="승부 전망">
+    <div class="result-outlook-heading">
+      <div>
+        <p class="result-outlook-label"><strong>승부 전망</strong> <span>${escape(result.label)}${archived ? " · 경기 전 기록 기준" : ""}</span></p>
+        ${analysisLine(result.headline,"","result-outlook-headline")}
+      </div>
+      <span class="result-outlook-mascot" aria-hidden="true">${mascotArt("checking",true)}</span>
+    </div>
+    ${complete ? `<div class="result-distribution" aria-hidden="true">
+      ${outcomes.map(({side,percent})=>`<span data-side="${side}" style="--outcome-width:${percent}%"></span>`).join("")}
+    </div>` : ""}
     <ul class="result-outcomes">
-      ${outcomes.map(({side,percent})=>`<li data-side="${side}"><span>${names[side]}</span><b>${percent}%</b></li>`).join("")}
+      ${outcomes.map(({side,percent})=>`<li data-side="${side}"><span class="result-outcome-key">${names[side]}</span><b>${percent}%</b></li>`).join("")}
     </ul>
   </section>`;
 }
@@ -268,7 +281,7 @@ export function renderOutlook(outlook, cancelled = false, historyHref = "", {ang
       <div class="outlook-main">
         <p class="outlook-label">${label}${outlook?.archived ? " · 경기 전 기록 기준" : ""}</p>
         ${analysisLine(lead, summary.length ? "· " + summary.join(" · ") : "", "outlook-line")}
-        ${outlook?.range ? `<p class="outlook-range">예상 범위 ${escape(outlook.range)}</p>` : ""}
+        ${outlook?.range ? `<p class="outlook-range"><span>예상 범위</span><strong>${escape(outlook.range)}</strong></p>` : ""}
       </div>
     </div>` : ""}
     ${angle?.summary ? analysisLine(angle.label,angle.summary,"outlook-angle") : ""}

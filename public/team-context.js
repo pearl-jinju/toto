@@ -59,6 +59,24 @@ function resultRun(games) {
   }).join("")}</span>`;
 }
 
+function recentResultTable(name, games) {
+  return `<table class="form-log" aria-label="${escape(name)} 기준 최근 경기 결과">
+    <colgroup><col class="form-log-date"><col><col class="form-log-score"><col class="form-log-result"></colgroup>
+    <thead><tr><th scope="col">날짜</th><th scope="col">상대</th><th scope="col">점수</th><th scope="col">결과</th></tr></thead>
+    <tbody>${games.map(([day, opponent, venue, scored, allowed]) => {
+      const isoDay = /^\d{4}-(\d{2})-(\d{2})$/.exec(day);
+      const date = isoDay ? `${Number(isoDay[1])}.${Number(isoDay[2])}` : day;
+      const result = resultWord(scored - allowed);
+      return `<tr>
+        <td><time${isoDay ? ` datetime="${escape(day)}" title="${escape(day)}"` : ""}>${escape(date)}</time></td>
+        <td><span class="form-log-opponent">${escape(opponent)}</span>${venue ? ` <small class="form-log-site">${escape(venue)}</small>` : ""}</td>
+        <td><strong>${escape(scored)}<span aria-hidden="true">:</span>${escape(allowed)}</strong></td>
+        <td><span class="form-log-badge" data-result="${result}">${result}</span></td>
+      </tr>`;
+    }).join("")}</tbody>
+  </table>`;
+}
+
 function recentTeams(teams, basis, sport = "축구") {
   const sample = Math.min(5,...teams.map(([,games])=>games.length));
   const usePoints = sport === "축구";
@@ -68,23 +86,25 @@ function recentTeams(teams, basis, sport = "축구") {
   });
   const leader = teams.length === 2 && sample >= 3 && rank[0] !== rank[1]
     ? Number(rank[1] > rank[0]) : -1;
-  return `<p class="context-basis">${escape(basis)} · 최신 경기부터</p>
-    <div class="context-grid-two">${teams.map(([name, games, source],index) => {
+  return `<div class="form-section-head">${mascotArt("form-review",true)}<p class="context-basis">${escape(basis)} · 최신 경기부터</p></div>
+    <div class="form-panels">${teams.map(([name, games, source],index) => {
       const [w,d,l] = counts(games);
       const scored = games.reduce((sum, r) => sum+r[3],0);
       const allowed = games.reduce((sum, r) => sum+r[4],0);
       const leads = index === leader;
       return `<section class="context-stat${leads ? " form-leader" : ""}">
         <div class="form-heading"><h4>${escape(name)}</h4>
-          ${leads ? `<span class="form-advantage">${mascotArt("courtside",true)}<b>최근 우세</b></span>` : ""}
-        </div>${resultRun(games)}
-        <p class="context-number">${w}승 ${d ? d+"무 " : ""}${l}패</p>
-        <p class="context-basis">${games.length}경기 · ${sport === "배구" ? `${scored}세트 획득 · ${allowed}세트 허용` : `${scored}득점 · ${allowed}실점`}</p>
-        ${leads ? `<p class="form-edge">양 팀 최근 ${sample}경기 ${usePoints ? "승점" : "승수"} ${rank[index]} 대 ${rank[1-index]}</p>` : ""}
-        <details class="context-evidence"><summary>날짜별 결과</summary>
-          <ol>${games.map(([day, opp, venue, gf, ga]) => `<li><time>${escape(day)}</time><span>${escape(opp)} <small>${escape(venue)}</small></span><strong>${gf} : ${ga}</strong></li>`).join("")}</ol>
-          ${link(source)}
-        </details>
+          ${leads ? `<span class="form-advantage"><b>최근 우세</b></span>` : ""}
+        </div>
+        ${games.length ? `<div class="form-timeline">${resultRun(games)}</div>
+          <p class="form-record"><b data-result="승">${w}승</b>${usePoints || d ? ` <b data-result="무">${d}무</b>` : ""} <b data-result="패">${l}패</b></p>
+          <p class="context-basis">${games.length}경기 · ${sport === "배구" ? `${scored}세트 획득 · ${allowed}세트 허용` : `${scored}득점 · ${allowed}실점`}</p>
+          ${leads ? `<p class="form-edge">양 팀 최근 ${sample}경기 ${usePoints ? "승점" : "승수"} ${rank[index]} 대 ${rank[1-index]}</p>` : ""}
+          <details class="context-evidence form-evidence">
+            <summary>날짜별 결과</summary>
+            ${recentResultTable(name,games)}
+            ${link(source)}
+          </details>` : '<p class="context-basis">확인된 경기 기록 없음</p>'}
       </section>`;
     }).join("")}</div>`;
 }
@@ -251,7 +271,11 @@ export function teamContextPanels(match, round, {detail, editorial, auto, standi
     ...cards.filter((_,i)=>!baseline.has(ids[i])),check];
   const notes = extra.records.filter(([title])=>!extra.headToHead?.length || !/^맞대결 \d+경기 ·/.test(title));
   return `<details class="match-context" data-keep-open="context"${opened.has("context") ? " open" : ""}>
-    <summary><span>상세 정보</span><span class="context-count">${allCards.length}개 항목</span><span class="context-plus" aria-hidden="true"></span></summary>
+    <summary>
+      <span class="context-summary-guide" aria-hidden="true">${mascotArt("standing",true)}</span>
+      <strong class="context-summary-title">상세 정보</strong>
+      <span class="context-count">${allCards.length}개 항목</span><span class="context-plus" aria-hidden="true"></span>
+    </summary>
     ${renderOutlook(auto?.outlook ?? (match.total ? {kind:"market",headline:`베트맨 기준 ${match.total.line}${match.sport === "축구" ? "골" : "점"} · ${match.total.under === match.total.over ? "언더·오버 배당이 같습니다" : `${match.total.under < match.total.over ? "언더" : "오버"} 쪽 배당이 낮습니다`}`,basis:`언더 ${match.total.under.toFixed(2)} · 오버 ${match.total.over.toFixed(2)}`,source:["베트맨 · 경기 배당",round.source]} : null), match.voided,fixtureHistoryHref(match.number,roundId),{angle:auto?.matchAngle,interpretations:outlookInterpretations(auto),notes,
       extraEvidence:epl ? eplSlot("record") : "",openEvidence:opened.has("outlook-evidence")})}
     <div class="context-cards">${allCards.join("")}</div>

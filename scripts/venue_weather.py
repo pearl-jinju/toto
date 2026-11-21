@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from math import isfinite
+from pathlib import Path
 from threading import Lock
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
@@ -175,6 +176,23 @@ _INDOOR = (
 
 def venue_key(venue):
     return "".join((venue or "").casefold().split())
+
+
+def load_venue_profiles():
+    path = Path(__file__).resolve().parents[1] / "data" / "venue_profiles.json"
+    with path.open(encoding="utf-8") as source:
+        profiles = json.load(source)
+    return {venue_key(alias): profile for profile in profiles for alias in profile["aliases"]}
+
+
+_VENUE_PROFILES = load_venue_profiles()
+
+
+def venue_feature(name, facts, watch, source, references=()):
+    return {
+        "category": "venue", "title": "경기장 특징", "value": name,
+        "venueFacts": facts, "text": watch, "source": source, "venueReferences": list(references),
+    }
 
 
 def event_time(starts_at):
@@ -410,13 +428,24 @@ def enrich_fixtures(fixtures, *, round_source=None):
         league = fixture.get("league", "")
         sport = fixture.get("sport", "")
         factors = output.setdefault(number, [])
+        profile = _VENUE_PROFILES.get(key)
+        if profile:
+            primary, *references = profile["sources"]
+            factors.append(venue_feature(profile["name"], profile["facts"], profile["watch"], primary, references))
         indoor = next((source for name, source in _INDOOR if league == name or league.startswith(f"{name} ")), None)
         if indoor:
+            if not profile and fixture.get("venue"):
+                watch = ("실내 바닥에서 멈췄다가 다시 뛸 때, 선수의 발이 미끄러지지 않는지 보세요."
+                         if sport == "농구" else "서브를 받으려고 발을 옮길 때 바닥이 잘 잡히는지, 리시브 자세를 제때 잡는지 보세요.")
+                factors.append(venue_feature(fixture["venue"], [["환경", "실내 코트"]], watch, list(indoor)))
             action = ("실외 바람과 비는 코트에 직접 닿지 않습니다. 후반 슛이 짧아지거나 수비 복귀가 늦는지 보려면 직전 경기와 휴식 간격을 함께 보세요."
                 if sport == "농구" else "실외 바람이 서브 궤도에 직접 영향을 주지 않습니다. 서브 리시브가 흔들리는지와 공격수가 높은 공을 처리하는지 보세요.")
             factors.append({"category":"weather","title":"실내 경기 환경","value":"바람·비의 직접 영향이 작은 실내 코트","text":action,"source":list(indoor),"visual":{"condition":"indoor","impact":"low","label":"실내 코트"}})
             continue
         if key in _FIXED_DOME:
+            if not profile:
+                factors.append(venue_feature(fixture["venue"], [["구조", "고정식 지붕의 돔"]],
+                                             "외부 바람보다 실내 표면에서 공이 어떻게 움직이는지 보세요.", list(_FIXED_DOME[key])))
             factors.append({"category":"weather","title":"돔 구장 환경","value":"강수와 바람의 직접 영향이 작은 돔","text":"외부 비·바람 대신 실제 실내 온도와 경기장 같은 조건에서의 선수 기록을 확인할 만합니다.","source":list(_FIXED_DOME[key]),"visual":{"condition":"indoor","impact":"low","label":"실내 돔"}})
             continue
         if key in _ROOFS:
@@ -425,7 +454,7 @@ def enrich_fixtures(fixtures, *, round_source=None):
         if not city_data:
             continue
         city, lat, lon = city_data
-        if round_source and key not in _ROOFS:
+        if round_source and key not in _ROOFS and not profile:
             factors.append({"category":"venue","title":"개최 도시","value":city,"text":f"베트맨에 등록된 경기장은 {fixture['venue']}입니다.","source":["베트맨 · 회차 경기장",round_source]})
         if fixture.get("status") in {"cancelled", "finished"} or not start or not now < start <= now + WEATHER_HORIZON:
             continue

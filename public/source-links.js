@@ -22,9 +22,14 @@ directRecords.set("/timberwolves/schedule",directRecords.get("/team/1610612750/s
 
 const limited = new Set([
   "official.nba.com/comments-on-the-rules/",
+  "www.nba.com/news/all-30-nba-arenas-by-team",
   "support.pinnacle.com/hc/en-us/articles/42376048557073-What-is-a-betting-margin",
   "support.pinnacle.bet/hc/en-us/articles/42376048557073-What-is-a-betting-margin",
   "help.bet365.com/s/en-ch/sportsrules/soccer/result-event-half-time"
+]);
+const creditOnly = new Set([
+  "https://www.kleague.com/news_view.do?category=club&orderBy=seq&page=1&seq=95750&viewOption=album",
+  "https://img.legaseriea.it/vimages/16fdc3835d74dc0c/54_-_campo_atalanta_bc.pdf"
 ]);
 const textChars = {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"};
 
@@ -72,7 +77,7 @@ export function sourceLink(pair) {
     const related = nbaRestricted ? directRecords.get(url.pathname) : null;
     return `<span class="source-credit">${escapeHtml(label)} · 원문 접속 제한</span>${related ? anchor(...related) : ""}`;
   }
-  if (technicalSource(url)) return `<span class="source-credit">${escapeHtml(label)} · 자료 제공</span>`;
+  if (technicalSource(url) || creditOnly.has(url.href)) return sourceCredit([`${label} · 자료 제공`]);
   return anchor(label,url.href);
 }
 

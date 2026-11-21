@@ -297,3 +297,10 @@ details[open] > summary .context-plus::after {transform:none}
 .weather-origin strong {color:var(--ink);font-size:.92rem}
 .weather-source-details {margin:6px 0 10px}
 .weather-source-details div {display:grid;grid-template-columns:minmax(72px,.65fr) minmax(0,1.35fr);gap:3px 8px;padding:3px 0}
+
+.venue-features {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(165px,100%),1fr));gap:7px;margin:8px 0}
+.venue-features div {min-width:0;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:#132432}
+.venue-features dt {font-size:.82rem}
+.venue-features dd {font-weight:740;line-height:1.4}
+.venue-watch {display:grid;gap:3px;padding:8px 10px;border-left:3px solid #7dbbd8;border-radius:6px;background:#142835}
+.venue-watch strong {font-size:.84rem;color:#b5e5fa}

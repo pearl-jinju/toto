@@ -1,0 +1,861 @@
+[
+  {
+    "aliases": [
+      "더덴스타디움",
+      "더 덴",
+      "The Den"
+    ],
+    "name": "더 덴 스타디움",
+    "facts": [
+      [
+        "잔디",
+        "하이브리드 잔디 · 2021 시공"
+      ],
+      [
+        "관중석",
+        "20,146석 · 관중석 4면"
+      ],
+      [
+        "잔디 관리",
+        "배수·관수·지중 난방"
+      ]
+    ],
+    "watch": "천연잔디에 인조섬유를 넣어 표면을 보강했습니다. 비가 온 날에는 땅볼이 물에 걸려 멈추는지, 방향을 틀 때 발이 밀리는지 보세요.",
+    "sources": [
+      [
+        "더 덴 · 잔디 공사 기록",
+        "https://www.mjabbott.co.uk/news/millwall-fc-upgrades-stadium-pitch/"
+      ],
+      [
+        "더 덴 · 구장 시설 안내",
+        "https://www.advancedco.com/projects/the-den-millwall-fc-stadium/"
+      ]
+    ]
+  },
+  {
+    "aliases": [
+      "엔니오타르디니스타디움",
+      "스타디오 엔니오 타르디니"
+    ],
+    "name": "엔니오 타르디니 스타디움",
+    "facts": [
+      [
+        "관중석",
+        "23,324석 · 파르마 구단 안내"
+      ],
+      [
+        "배치",
+        "옛 자전거 트랙 자리에 피치와 가까운 관중석"
+      ],
+      [
+        "지붕",
+        "서쪽 프티토 관중석 덮개"
+      ]
+    ],
+    "watch": "터치라인과 관중석이 가까운 편입니다. 관중 분위기와 경기 당일 관중 수는 실제 현황을 함께 보세요.",
+    "sources": [
+      [
+        "파르마 칼초 · 경기장 공식 안내",
+        "https://www.parmacalcio1913.com/en/stadio-tardini/"
+      ]
+    ]
+  },
+  {
+    "aliases": [
+      "스완지닷컴스타디움"
+    ],
+    "name": "스완지닷컴 스타디움",
+    "facts": [
+      [
+        "잔디",
+        "SISGrass 하이브리드 잔디"
+      ],
+      [
+        "수용 규모",
+        "약 21,000석"
+      ],
+      [
+        "잔디 관리",
+        "지하 배수·수분 흡입 설비"
+      ]
+    ],
+    "watch": "비가 온 뒤에는 땅볼 패스가 평소처럼 굴러가는지와 물이 고이는 구역이 있는지 보세요.",
+    "sources": [
+      [
+        "스완지 시티 · 경기장 안내",
+        "https://www.swanseacity.com/club/swanseacom-stadium"
+      ]
+    ]
+  },
+  {
+    "aliases": [
+      "캐로로드",
+      "캐로 로드"
+    ],
+    "name": "캐로 로드",
+    "facts": [
+      [
+        "피치 폭",
+        "68m · 노리치 구단 안내"
+      ],
+      [
+        "관중석 배치",
+        "사우스 스탠드 일부 앞줄은 피치와 같은 높이"
+      ]
+    ],
+    "watch": "양 팀이 터치라인 쪽 공간을 얼마나 넓게 쓰는지, 측면을 돌아 크로스를 올리는지 비교해 볼 수 있습니다.",
+    "sources": [
+      [
+        "노리치 시티 · 피치 폭 안내",
+        "https://canaries.co.uk/content/active-canaries-week-one-is-here"
+      ],
+      [
+        "노리치 시티 · 관중석 접근 안내",
+        "https://files.canaries.co.uk/web/accessstatement.pdf"
+      ]
+    ]
+  },
+  {
+    "aliases": [
+      "세인트메리즈스타디움",
+      "세인트메리스스타디움"
+    ],
+    "name": "세인트 메리즈 스타디움",
+    "facts": [
+      [
+        "수용 규모",
+        "약 32,000명"
+      ],
+      [
+        "홈 응원석",
+        "노섬 스탠드 일부 레일형 입석"
+      ],
+      [
+        "원정 응원석",
+        "채플·킹스랜드가 만나는 모서리"
+      ]
+    ],
+    "watch": "홈·원정 응원석이 어디에 있는지 알면 중계에서 어느 쪽 응원 소리가 크게 들리는지 이해하기 쉽습니다.",
+    "sources": [
+      [
+        "사우샘프턴 · 홈구장 안내",
+        "https://www.southamptonfc.com/en/our-locations"
+      ],
+      [
+        "사우샘프턴 · 응원석과 시설",
+        "https://www.southamptonfc.com/en/news/article/safe-standing-2-500-seats-to-be-safe-standing-for-stoke-match"
+      ]
+    ]
+  },
+  {
+    "aliases": [
+      "터프무어"
+    ],
+    "name": "터프 무어",
+    "facts": [
+      [
+        "피치",
+        "105 × 68m"
+      ],
+      [
+        "관중석",
+        "21,944석"
+      ],
+      [
+        "잔디",
+        "하이브리드 잔디 · 2022년 관리 기록"
+      ]
+    ],
+    "watch": "비가 오는 날에는 측면에서 공을 세게 보낼 때 평소보다 길게 미끄러지는지 확인해 보세요.",
+    "sources": [
+      [
+        "번리 FC · 구장 안내",
+        "https://www.burnleyfootballclub.com/stadium-access-information"
+      ],
+      [
+        "터프 무어 · 잔디 관리 기록",
+        "https://replaymaintenance.co.uk/burnley-football-pitch-maintenance/"
+      ]
+    ]
+  },
+  {
+    "aliases": [
+      "리버사이드스타디움"
+    ],
+    "name": "리버사이드 스타디움",
+    "facts": [
+      [
+        "관중석",
+        "관중석 네 면이 피치를 둘러싸는 구조"
+      ],
+      [
+        "개장",
+        "1995년"
+      ],
+      [
+        "사용 구단",
+        "미들즈브러 FC"
+      ]
+    ],
+    "watch": "네 면에 관중석이 배치돼 있습니다. 중계에서 양 팀 응원 구역과 실제 관중 규모를 함께 살펴보세요.",
+    "sources": [
+      [
+        "프리미어리그 · 리버사이드 시설 조사",
+        "https://premierleague-static-files.s3.amazonaws.com/premierleague/document/2017/02/01/31d1960b-1a4d-492a-9a71-c5f2f01b7abc/Improving-Disabled-Access-in-Premier-League-Stadia-Interim-Report-Janu....pdf"
+      ]
+    ]
+  },
+  {
+    "aliases": [
+      "주세페메아차스타디움",
+      "산시로"
+    ],
+    "name": "산시로 · 주세페 메아차 스타디움",
+    "facts": [
+      [
+        "잔디",
+        "천연잔디에 인조 섬유를 섞은 하이브리드"
+      ],
+      [
+        "구단 공지",
+        "2026년 11월 13~21일 잔디 교체 일정 발표"
+      ]
+    ],
+    "watch": "운영사는 작업 일정이 바뀔 수 있다고 공지했습니다. 경기 초반 땅볼의 바운드와 선수의 발 디딤을 확인해 보세요.",
+    "sources": [
+      [
+        "산시로 운영사 · 잔디 교체 공지",
+        "https://sansirostadium.com/the-san-siro-pitch-gets-a-new-look-13-21-november-pitch-renovation/?lang=en"
+      ]
+    ]
+  },
+  {
+    "aliases": [
+      "알리안츠스타디움토리노"
+    ],
+    "name": "알리안츠 스타디움 · 토리노",
+    "facts": [
+      [
+        "관중석 거리",
+        "피치와 최단 7.5m"
+      ],
+      [
+        "수용 규모",
+        "유벤투스 안내 기준 약 41,000석"
+      ]
+    ],
+    "watch": "선수와 관중석이 가까운 구조입니다. 실제 응원 분위기는 경기 당일 관중 수와 함께 살펴보세요.",
+    "sources": [
+      [
+        "유벤투스 · 경기장 공식 안내",
+        "https://www.juventus.com/En/allianz-stadium/our-home"
+      ]
+    ]
+  },
+  {
+    "aliases": [
+      "올림피코로마스타디움"
+    ],
+    "name": "스타디오 올림피코 · 로마",
+    "facts": [
+      [
+        "관중석",
+        "AS로마 좌석도 기준 68,530석"
+      ],
+      [
+        "골대 뒤 관중석",
+        "북·남 구역 각 7,500석"
+      ]
+    ],
+    "watch": "양쪽 골대 뒤에 큰 응원 구역이 있습니다. 중계에서 어느 구역이 채워져 있는지 보면 현장 분위기를 파악하기 쉽습니다.",
+    "sources": [
+      [
+        "AS로마 · 공식 좌석 배치도",
+        "https://www.asroma.com/en/stadium/seating-plan"
+      ]
+    ]
+  },
+  {
+    "aliases": [
+      "주세페시니갈리아스타디움"
+    ],
+    "name": "주세페 시니갈리아 스타디움",
+    "facts": [
+      [
+        "입지",
+        "코모호 호숫가"
+      ],
+      [
+        "구단 공지",
+        "새 관중석 및 안전·운영 시설 개선"
+      ]
+    ],
+    "watch": "날씨 카드에 바람이 잡히면 실제 피치에서도 높은 공의 궤적에 영향이 있는지 보세요.",
+    "sources": [
+      [
+        "코모 1907 · 시설 개선 안내",
+        "https://comofootball.com/en/stadio-sinigaglia-will-host-the-uefa-champions-league/"
+      ]
+    ]
+  },
+  {
+    "aliases": [
+      "디에고아르만도마라도나스타디움"
+    ],
+    "name": "디에고 아르만도 마라도나 스타디움",
+    "facts": [
+      [
+        "시설",
+        "피치를 감싸는 육상 트랙"
+      ],
+      [
+        "관중석 배치",
+        "트랙이 관중석과 피치 사이에 위치"
+      ]
+    ],
+    "watch": "터치라인 밖 트랙이 있어 같은 관중 수라도 관중석이 피치 바로 옆에 있는 구장과 체감 거리가 다릅니다.",
+    "sources": [
+      [
+        "이탈리아 축구협회 · 경기장 현장 안내",
+        "https://www.figc.it/it/nazionali/news/pre-match-show-per-italia-inghilterra-atmosfera-coinvolgente-per-aumentare-impatto-emozionale-e-partecipazione-s6sdv31v"
+      ]
+    ]
+  },
+  {
+    "aliases": [
+      "뉴발란스아레나"
+    ],
+    "name": "뉴발란스 아레나",
+    "facts": [
+      [
+        "피치",
+        "105 × 68m · 세리에 A 시설 자료"
+      ],
+      [
+        "관중석 지붕",
+        "르네상스 스탠드와 양쪽 골대 뒤 관중석"
+      ]
+    ],
+    "watch": "지붕이 덮인 범위는 관중석입니다. 비 예보가 있을 때는 피치 위 공의 움직임을 따로 보세요.",
+    "sources": [
+      [
+        "아탈란타 · 공식 경기장 시설",
+        "https://www.atalanta.it/stadio?appview=true"
+      ],
+      [
+        "세리에 A · 아탈란타 피치 규격",
+        "https://img.legaseriea.it/vimages/16fdc3835d74dc0c/54_-_campo_atalanta_bc.pdf"
+      ]
+    ]
+  },
+  {
+    "aliases": [
+      "전주월드컵경기장"
+    ],
+    "name": "전주월드컵경기장",
+    "facts": [
+      [
+        "주경기장",
+        "천연잔디 축구전용"
+      ],
+      [
+        "관중석",
+        "42,564석 · 시설 안내 기준"
+      ],
+      [
+        "육상 트랙",
+        "보조경기장에 설치"
+      ]
+    ],
+    "watch": "주경기장은 축구전용입니다. 측면에서 공을 빨리 주고받아 공간을 만드는 장면을 보세요.",
+    "sources": [
+      [
+        "전북체육회 · 주경기장 시설",
+        "https://www.jbsports.or.kr/site/menu/MENU_000000000000058"
+      ]
+    ]
+  },
+  {
+    "aliases": [
+      "수원월드컵경기장"
+    ],
+    "name": "수원월드컵경기장",
+    "facts": [
+      [
+        "잔디",
+        "천연잔디 · 켄터키블루그래스"
+      ],
+      [
+        "전체 잔디면",
+        "114 × 77m · 시설 안내 기준"
+      ]
+    ],
+    "watch": "잔디면은 터치라인 밖을 포함합니다. 실제 경기에서는 바운드와 땅볼 패스 속도가 일정한지 보세요.",
+    "sources": [
+      [
+        "수원월드컵경기장관리재단 · 시설 안내",
+        "https://suwonworldcup.gg.go.kr/gg_worldcup_stadium/fac-intro"
+      ]
+    ]
+  },
+  {
+    "aliases": [
+      "부산구덕운동장",
+      "구덕운동장"
+    ],
+    "name": "부산 구덕운동장",
+    "facts": [
+      [
+        "피치",
+        "천연잔디 축구장"
+      ],
+      [
+        "트랙",
+        "400m 육상 트랙 · 8개 레인"
+      ],
+      [
+        "관중석",
+        "12,349석"
+      ]
+    ],
+    "watch": "육상 트랙을 사이에 두고 관중석과 피치가 배치됩니다. 잔디가 젖은 날에는 첫 터치가 길어지는지 보세요.",
+    "sources": [
+      [
+        "부산시 · 구덕 주경기장 시설",
+        "https://www.busan.go.kr/stadium/sfgdmain"
+      ]
+    ]
+  },
+  {
+    "aliases": [
+      "목동종합운동장"
+    ],
+    "name": "목동종합운동장",
+    "facts": [
+      [
+        "주경기장",
+        "축구장과 육상 트랙"
+      ],
+      [
+        "잔디",
+        "천연잔디 · 서울시 공개 자료"
+      ],
+      [
+        "관중석",
+        "약 20,000석"
+      ]
+    ],
+    "watch": "트랙이 있어 관중석과 그라운드 사이에 공간이 있습니다. 관중 규모는 실제 경기 기록에서 확인할 수 있습니다.",
+    "sources": [
+      [
+        "서울시 · 목동 주경기장 안내",
+        "https://stadium.seoul.go.kr/reserve/mokdonggr/main-stadium"
+      ],
+      [
+        "서울시의회 · 잔디 시설 자료",
+        "https://ms.smc.seoul.kr/attach/record/SEOUL/appendix/a11/A0066401.pdf?time=20260409165409"
+      ]
+    ]
+  },
+  {
+    "aliases": [
+      "포항스틸야드"
+    ],
+    "name": "포항 스틸야드",
+    "facts": [
+      [
+        "그라운드",
+        "2026년 후반기 전 천연잔디와 모래 전면 교체"
+      ],
+      [
+        "피치 바깥",
+        "가장자리에 인조잔디 시공"
+      ],
+      [
+        "응원석",
+        "중립 관중석 올팬존 신설"
+      ]
+    ],
+    "watch": "공이 굴러가는 주경기장 잔디를 보세요. 터치라인 밖 인조잔디는 피치 표면과 구분됩니다.",
+    "sources": [
+      [
+        "K리그 · 포항 구장 개보수 발표",
+        "https://www.kleague.com/news_view.do?category=club&orderBy=seq&page=1&seq=95750&viewOption=album"
+      ],
+      [
+        "연합뉴스 · 포항 구장 개보수 보도",
+        "https://www.yna.co.kr/view/AKR20260722111000007"
+      ]
+    ]
+  },
+  {
+    "aliases": [
+      "김포솔터축구장",
+      "솔터축구장"
+    ],
+    "name": "김포 솔터축구장",
+    "facts": [
+      [
+        "피치",
+        "천연잔디 주경기장"
+      ],
+      [
+        "잔디면",
+        "9,179㎡ · 시설 자료"
+      ],
+      [
+        "관중석",
+        "10,037석 · 가변석 포함"
+      ]
+    ],
+    "watch": "장소에 따라 공이 더 빠르게 굴러가거나 멈추는 구간이 있는지 확인해 보세요.",
+    "sources": [
+      [
+        "김포시의회 · 솔터축구장 시설 자료",
+        "https://gimpocouncil.go.kr/upload/mnts/apndx/a08/20260205153515-695495.pdf"
+      ]
+    ]
+  },
+  {
+    "aliases": [
+      "인천축구전용경기장"
+    ],
+    "name": "인천축구전용경기장",
+    "facts": [
+      [
+        "유형",
+        "축구전용구장"
+      ],
+      [
+        "관중석",
+        "20,376석 · 인천시 안내"
+      ]
+    ],
+    "watch": "선수들이 터치라인 가까이에서 공을 받고 좁은 공간을 빠져나오는 장면을 보세요.",
+    "sources": [
+      [
+        "인천시 · 경기장 시설 안내",
+        "https://www.incheon.go.kr/health/HE050306"
+      ]
+    ]
+  },
+  {
+    "aliases": [
+      "헨리스타디움",
+      "Hnry Stadium",
+      "스카이스타디움"
+    ],
+    "name": "헨리 스타디움",
+    "facts": [
+      [
+        "입지",
+        "웰링턴 해안의 야외 구장"
+      ],
+      [
+        "피치",
+        "모래 기반 잔디 피치"
+      ],
+      [
+        "수용 규모",
+        "34,500석 · 운영사 안내"
+      ]
+    ],
+    "watch": "해안 바람이 강한 날에는 골킥과 크로스가 어느 쪽으로 밀리는지 보세요.",
+    "sources": [
+      [
+        "헨리 스타디움 · 시설과 수용 규모",
+        "https://www.hnrystadium.co.nz/news/one-nz-warriors-anzac-day-clash-sold-out-in-wellington"
+      ],
+      [
+        "웰링턴 피닉스 · 피치 안내",
+        "https://wellingtonphoenix.com/news/stadium-information/"
+      ],
+      [
+        "웰링턴 지역의회 · 야외 구장 시설 자료",
+        "https://www.gw.govt.nz/assets/Documents/2022/08/Council-25-August-2022-order-paper.pdf#page=127"
+      ]
+    ]
+  },
+  {
+    "aliases": [
+      "페이컴센터"
+    ],
+    "name": "페이컴 센터",
+    "facts": [
+      [
+        "환경",
+        "실내 농구 코트"
+      ],
+      [
+        "농구 수용 규모",
+        "18,203명 · 경기장 운영사 안내"
+      ]
+    ],
+    "watch": "농구 경기 당일 관중 수와 코트 상태는 경기 기록과 중계에서 확인할 수 있습니다.",
+    "sources": [
+      [
+        "페이컴 센터 · 공식 시설 자료",
+        "https://www.paycomcenter.com/about-the-arena/fast-facts"
+      ]
+    ]
+  },
+  {
+    "aliases": [
+      "크립토닷컴아레나",
+      "크립토닷컴 아레나"
+    ],
+    "name": "크립토닷컴 아레나",
+    "facts": [
+      [
+        "레이커스 좌석",
+        "18,997석 · 운영사 공개 기준"
+      ],
+      [
+        "관중석 구조",
+        "좌석 약 3분의 2가 낮은 층에 위치"
+      ],
+      [
+        "공용 시설",
+        "농구와 아이스하키 전환 운영"
+      ]
+    ],
+    "watch": "이곳은 행사를 바꿀 때 바닥을 전환합니다. 경기 중 선수가 급정지할 때 발이 잡히는지 보면 코트 상태를 살펴볼 수 있습니다.",
+    "sources": [
+      [
+        "크립토닷컴 아레나 · 운영사 시설 정보",
+        "https://www.cryptoarena.com/vital-stats"
+      ]
+    ]
+  },
+  {
+    "aliases": [
+      "델타센터"
+    ],
+    "name": "델타 센터",
+    "facts": [
+      [
+        "환경",
+        "실내 경기장"
+      ],
+      [
+        "공용 시설",
+        "유타 재즈 농구와 유타 매머드 아이스하키"
+      ],
+      [
+        "개장",
+        "1991년"
+      ]
+    ],
+    "watch": "농구와 하키가 같은 시설을 사용합니다. 당일 코트 상태는 선수들이 급정지할 때 발이 밀리는지로 살펴볼 수 있습니다.",
+    "sources": [
+      [
+        "델타 센터 · 운영사 시설 안내",
+        "https://www.deltacenter.com/about-us/"
+      ]
+    ]
+  },
+  {
+    "aliases": [
+      "스테이트팜아레나"
+    ],
+    "name": "스테이트 팜 아레나",
+    "facts": [
+      [
+        "환경",
+        "실내 농구 코트"
+      ],
+      [
+        "농구 수용 규모",
+        "16,888명 · 운영사 시설 안내"
+      ]
+    ],
+    "watch": "실내 경기에서는 바깥 날씨보다 실제 출전 명단과 경기 중 슛 흐름을 먼저 확인하세요.",
+    "sources": [
+      [
+        "스테이트 팜 아레나 · 운영사 시설 안내",
+        "https://www.statefarmarena.com/about-the-arena/quick-facts"
+      ]
+    ]
+  },
+  {
+    "aliases": [
+      "브라몰레인",
+      "브라몰 레인"
+    ],
+    "name": "브라몰 레인",
+    "facts": [
+      [
+        "피치",
+        "2025년 6월 전면 개보수 착수 · 셰필드 유나이티드 보고서"
+      ]
+    ],
+    "watch": "경기 초반 땅볼 패스가 일정하게 굴러가고 받는 선수가 한 번에 처리할 수 있는지 보세요.",
+    "sources": [
+      [
+        "셰필드 유나이티드 · 구단 보고서",
+        "https://images.gc.sufcservices.co.uk/b5cc0d70-3299-11f1-855f-c9424bb05eed.pdf"
+      ]
+    ]
+  },
+  {
+    "aliases": [
+      "메루카리스타디움",
+      "메루카리 스타디움"
+    ],
+    "name": "메루카리 스타디움",
+    "facts": [
+      [
+        "잔디",
+        "천연잔디 · 전체 잔디 구역 115 × 78m"
+      ],
+      [
+        "관중석",
+        "약 3분의 2가 지붕 아래"
+      ],
+      [
+        "잔디 관리",
+        "스프링클러·지중 난방"
+      ]
+    ],
+    "watch": "지중 난방은 잔디 관리에 쓰는 설비입니다. 기온이 낮은 날에는 잔디가 실제로 얼었는지와 공이 고르게 구르는지 화면에서 확인하세요.",
+    "sources": [
+      [
+        "가시마 앤틀러스 · 공식 경기장 시설",
+        "https://www.antlers.co.jp/pages/mercari-stadium-about"
+      ]
+    ]
+  },
+  {
+    "aliases": [
+      "파나소닉스타디움스이타"
+    ],
+    "name": "파나소닉 스타디움 스이타",
+    "facts": [
+      [
+        "피치",
+        "105 × 68m 천연잔디 · 축구전용"
+      ],
+      [
+        "관중석 거리",
+        "피치와 최단 7m"
+      ]
+    ],
+    "watch": "관중석이 피치 가까이 배치돼 있습니다. 실제 응원 분위기는 관중 수와 경기 흐름을 함께 보세요.",
+    "sources": [
+      [
+        "스이타시 · 경기장 시설 규격",
+        "https://www.city.suita.osaka.jp/_res/projects/default_project/_page_/001/033/296/hoshin.pdf"
+      ],
+      [
+        "감바 오사카 · 관중석 안내",
+        "https://www.gamba-osaka.net/english/partner/program/"
+      ]
+    ]
+  },
+  {
+    "aliases": [
+      "컴뱅크스타디움",
+      "콤뱅크스타디움"
+    ],
+    "name": "컴뱅크 스타디움",
+    "facts": [
+      [
+        "관중석",
+        "30,000석"
+      ],
+      [
+        "구조",
+        "가파른 계단식 관중석이 경기면 가까이에 배치"
+      ]
+    ],
+    "watch": "관중석과 필드가 가까운 구조입니다. 중계에서는 응원 규모와 실제 경기 분위기를 함께 볼 수 있습니다.",
+    "sources": [
+      [
+        "뉴사우스웨일스 주 경기장 운영기관 · 시설 안내",
+        "https://www.venuesnsw.com/our-venues/commbank_stadium"
+      ]
+    ]
+  },
+  {
+    "aliases": [
+      "김천종합운동장"
+    ],
+    "name": "김천종합운동장",
+    "facts": [
+      [
+        "주경기장",
+        "천연잔디"
+      ],
+      [
+        "트랙",
+        "400m 육상 트랙"
+      ],
+      [
+        "수용 규모",
+        "11,000명 · 시 시설 자료"
+      ]
+    ],
+    "watch": "트랙이 피치를 둘러싸는 구조입니다. 바람이 강하면 높은 패스가 지면에서 찬 공과 어떻게 다른지 보세요.",
+    "sources": [
+      [
+        "김천시 · 종합운동장 시설 자료",
+        "https://www.gc.go.kr/design/mayor/download/minseon8gi_detail_251021/1-1.pdf"
+      ]
+    ]
+  },
+  {
+    "aliases": [
+      "파주스타디움"
+    ],
+    "name": "파주 스타디움",
+    "facts": [
+      [
+        "주경기장",
+        "천연잔디"
+      ],
+      [
+        "시설",
+        "러닝 트랙과 축구 응원용 가변석"
+      ]
+    ],
+    "watch": "가변석은 관중과 경기면 사이의 거리를 줄이는 데 쓰입니다. 실제 응원석 배치는 중계 화면에서 확인해 보세요.",
+    "sources": [
+      [
+        "파주시 · 주경기장 시설 안내",
+        "https://www.paju.go.kr/user/facilityReserve/BD_selectSportsFacilityList.do?q_ctgCd=1003"
+      ],
+      [
+        "파주시 · 경기 관람 안내",
+        "https://tour.paju.go.kr/user/link/cultural/BD_selectCulturalView.do?cultMstSn=884"
+      ]
+    ]
+  },
+  {
+    "aliases": [
+      "강릉하이원아레나",
+      "강릉종합운동장"
+    ],
+    "name": "강릉 하이원 아레나 · 강릉종합운동장",
+    "facts": [
+      [
+        "잔디",
+        "103 × 68m 천연잔디"
+      ],
+      [
+        "트랙",
+        "400m 육상 트랙 · 8레인"
+      ],
+      [
+        "수용 규모",
+        "21,416명 · 강릉시 안내"
+      ]
+    ],
+    "watch": "육상 트랙이 피치를 둘러싸고 있습니다. 실제 바람이 강한 날에는 높은 패스가 어느 쪽으로 휘는지 보세요.",
+    "sources": [
+      [
+        "강릉시 · 종합운동장 시설",
+        "https://www.gn.go.kr/gaf/contents.do?key=6244"
+      ]
+    ]
+  }
+]

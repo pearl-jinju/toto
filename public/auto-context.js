@@ -81,6 +81,18 @@ function renderFact(fact) {
       </details>
     </section>`;
   }
+  if (fact.category === "venue" && Array.isArray(fact.venueFacts)) {
+    return `<section class="context-item venue-profile">
+      <h4>${escape(value ?? title)}</h4>
+      <dl class="venue-features">
+        ${fact.venueFacts.map(([label,detail])=>renderLine(escape(label),detail)).join("")}
+      </dl>
+      ${text ? `<p class="venue-watch"><strong>경기에서 볼 점</strong><span>${escape(text)}</span></p>` : ""}
+      <details class="context-evidence"><summary>구장 자료 출처</summary>
+        ${sourceCredits([source,...(fact.venueReferences ?? [])])}
+      </details>
+    </section>`;
+  }
   const original = Array.isArray(fact.originalNames) ? fact.originalNames : [fact.originalName];
   const names = original.filter(name => typeof name === "string" && name.trim());
   return `<section class="context-item">
@@ -161,7 +173,10 @@ export function automaticCards(match, round, context, existingIds, card, opened)
     }
     if (items?.length) {
       present.add(category);
-      supplemental.push(card(category,title,icon,hint,items.map(renderFact).join(""),opened));
+      const venue = category === "venue" ? items.find(fact=>Array.isArray(fact.venueFacts)) : null;
+      const titleText = venue ? "구장 특징" : category === "venue" && items.every(fact=>fact.title==="개최 도시") ? "경기장 위치" : title;
+      const hintText = venue ? venue.venueFacts.slice(0,2).map(([,value])=>value).join(" · ") : hint;
+      supplemental.push(card(category,titleText,icon,hintText,items.map(renderFact).join(""),opened));
     }
   }
 

@@ -49,7 +49,7 @@ function normalizeFeed(feed) {
 
 const sportNames = ["전체", "축구", "야구", "농구", "배구"];
 const views = [
-  ["schedule", "경기 일정"],
+  ["schedule", "예정·최근"],
   ["finished", "종료 경기"],
   ["all", "회차 전체"]
 ];
@@ -211,19 +211,21 @@ export function renderSchedule(main, briefings, params) {
       <div class="schedule-copy">
         <p class="schedule-label" id="round-label"></p>
         <h1>경기 일정</h1>
-        <p class="schedule-meta"><span id="round-count"></span> · 한국 시간 · <span id="round-updated" role="status"></span></p>
+        <p class="schedule-meta"><span><span id="round-count"></span> · 한국 시간</span><span id="round-updated" role="status"></span></p>
         <button type="button" class="overlay-launch" id="overlay-launch" aria-expanded="false">${canFloat ? "오버레이 실행" : "웹 미니 보기"}</button>
       </div>
       <div class="schedule-mascot" aria-hidden="true">${mascotArt("perched",false,{eager:true})}</div>
     </div>
   </section>
   <div class="schedule-controls">
-    <nav class="schedule-views" aria-label="경기 보기">${views.map(([id, label]) => `<button type="button" data-view="${id}">${label}</button>`).join("")}</nav>
-    <div class="schedule-refine">
-      <label class="schedule-search"><span class="sr-only">팀, 리그, 경기번호 검색</span><span aria-hidden="true" class="search-mark"></span><input id="schedule-search" type="search" placeholder="팀 · 리그 · 경기번호 검색"></label>
-      <label class="schedule-sport"><span class="sr-only">종목 선택</span><select id="schedule-sport">${sportNames.map(name => `<option ${name === sport ? "selected" : ""}>${name === "전체" ? "전체 종목" : name}</option>`).join("")}</select></label>
-    </div>
     <div class="schedule-dates" id="schedule-dates"></div>
+    <div class="schedule-toolbar">
+      <nav class="schedule-views" aria-label="경기 보기">${views.map(([id, label]) => `<button type="button" data-view="${id}">${label}</button>`).join("")}</nav>
+      <div class="schedule-refine">
+        <label class="schedule-search"><span class="sr-only">팀, 리그, 경기번호 검색</span><span aria-hidden="true" class="search-mark"></span><input id="schedule-search" type="search" placeholder="팀 · 리그 · 번호"></label>
+        <label class="schedule-sport"><span class="sr-only">종목 선택</span><select id="schedule-sport">${sportNames.map(name => `<option ${name === sport ? "selected" : ""}>${name === "전체" ? "전체 종목" : name}</option>`).join("")}</select></label>
+      </div>
+    </div>
   </div>
   <div id="schedule-results"></div>
   <details class="block secondary-panel"><summary>일정과 결과 출처</summary><p class="muted">베트맨 공개 경기표를 1분마다 확인합니다. 출전 변수와 팀 기록은 각 출처의 발표 시점을 기준으로 제공합니다.</p><div id="schedule-origin"></div></details>`;

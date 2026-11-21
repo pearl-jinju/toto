@@ -56,6 +56,11 @@ function anchor(label, href) {
   return `<a class="source" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`;
 }
 
+export function sourceCredit(pair) {
+  const label = Array.isArray(pair) ? pair[0] : null;
+  return typeof label === "string" && label.trim() ? `<span class="source-credit">${escapeHtml(label)}</span>` : "";
+}
+
 export function sourceLink(pair) {
   const url = addressOf(pair);
   if (!url) return "";

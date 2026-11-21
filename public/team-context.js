@@ -1,4 +1,4 @@
-import { sourceLink as link } from "./source-links.js";
+import { sourceCredit, sourceLink as link } from "./source-links.js";
 import { fixtureHistoryHref } from "./history-report.js";
 import { fixtureContext } from "./fixture-context.js";
 import { sources } from "./data.js";
@@ -145,7 +145,7 @@ function overseas(lines, match, officialSource) {
 function stadium(venue, onSite) {
   const list = values => `<ul class="context-chips">${values.map(value => `<li>${escape(value)}</li>`).join("")}</ul>`;
   return `${venue ? `<h4>${escape(venue.name)}</h4>${list(venue.facts)}<p>${escape(venue.note)}</p>${venue.sources.map(link).join("")}` : ""}
-    ${onSite ? `<div class="context-item"><h4>경기 당일 관측</h4>${list(onSite.facts)}${link(onSite.source)}</div>` : ""}`;
+    ${onSite ? `<div class="context-item"><h4>경기 당일 관측</h4>${list(onSite.facts)}${sourceCredit(onSite.source)}</div>` : ""}`;
 }
 
 export function teamContextPanels(match, round, {detail, editorial, auto, opened = new Set()} = {}) {
@@ -174,7 +174,7 @@ export function teamContextPanels(match, round, {detail, editorial, auto, opened
       <p>${escape(weather.impact)}</p>
       <details class="weather-evidence"><summary>중계에서 볼 점 · 출처</summary>
       <p>${escape(weather.watch)}</p><p class="context-basis">${escape(weather.basis)}</p>
-      ${link(sources[detail.weather?.[2]])}${weather.refs.map(ref=>link(sources[ref])).join("")}</details>`,opened) : "",
+      ${sourceCredit(sources[detail.weather?.[2]])}${weather.refs.map(ref=>sourceCredit(sources[ref])).join("")}</details>`,opened) : "",
     (playerRows.length || editorial?.roster) ? card("players","주요 선수","◇","최근 활약과 출전 상태",
       (editorial?.roster ? `<section class="context-item"><h4>출전 변수</h4><p>${escape(editorial.roster[0])}</p>${link(["NBA 부상 보고서 · 11/21 23:15 KST",editorial.roster[1]])}</section>` : "")+genericItems(playerRows,"player")+renderAutomaticFactors(auto,"players"),opened) : "",
     newsRows.length ? card("news","주요 뉴스","≡","경기에 관련된 발표",genericItems(newsRows,"news")+renderAutomaticFactors(auto,"news"),opened) : "",

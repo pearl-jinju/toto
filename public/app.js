@@ -1,4 +1,4 @@
-import { sourceLink } from "./source-links.js";
+import { sourceCredit, sourceLink } from "./source-links.js";
 import { fixtureHistoryHref, renderHistoryPage } from "./history-report.js";
 import { snapshot, sources, games } from "./data.js";
 import { research } from "./research.js";
@@ -98,11 +98,11 @@ function weatherCard(game) {
   const assessment = game.weatherAssessment;
   if (!assessment) {
     return `<section class="block weather-card"><h2>경기장 환경</h2>
-      <div data-brief-weather>${weatherPanel(curatedWeatherVisual(game))}<strong>${conditions}</strong><p>${details}</p>${source(forecastRef)}</div></section>`;
+      <div data-brief-weather>${weatherPanel(curatedWeatherVisual(game))}<strong>${conditions}</strong><p>${details}</p>${sourceCredit(sources[forecastRef])}</div></section>`;
   }
 
   const { readings, basis, impact, watch, refs } = assessment;
-  const links = [forecastRef, ...refs].filter(Boolean);
+  const credits = [forecastRef, ...refs].map(ref => sourceCredit(sources[ref])).join("");
   return `<section class="block weather-card">
     <h2>경기장 환경</h2>
     <div data-brief-weather>
@@ -111,7 +111,7 @@ function weatherCard(game) {
       <p class="weather-explanation">${impact}</p>
       <details class="weather-evidence"><summary>중계에서 볼 점 · 출처</summary>
         <p>${watch}</p><p class="muted">${basis} · ${details}</p>
-        ${links.map(source).join("")}
+        ${credits}
       </details>
     </div>
   </section>`;

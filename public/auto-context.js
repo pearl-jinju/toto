@@ -1,4 +1,4 @@
-import { escapeHtml as escape, isSource, sourceCredits, sourceLink } from "./source-links.js";
+import { escapeHtml as escape, isSource, sourceCredit, sourceCredits, sourceLink } from "./source-links.js";
 import { mascotFigure, scoringPose, scoringWord, weatherHint, weatherPanel, weatherVisual } from "./match-visuals.js";
 
 const displayDate = new Intl.DateTimeFormat("ko-KR", {
@@ -75,11 +75,9 @@ function renderFact(fact) {
       <details class="weather-evidence"><summary>${basis ? "예보 시각·기준 위치" : "환경 해석과 출처"}</summary>
         ${renderForecastBasis(basis)}
         <p>${escape(text)}</p>
-        ${basis ? `<p class="context-basis">도심 대표 지점의 예보입니다. 경기장 잔디나 관중석에서 측정한 값은 확인되지 않았습니다.</p>
-          ${sourceLink(["MET Norway · 예보 제공 방식","https://api.met.no/doc/locationforecast/HowTO"])}`
-          : sourceLink(source)}
+        ${basis ? '<p class="context-basis">도심 대표 지점의 예보입니다. 경기장 잔디나 관중석에서 측정한 값은 확인되지 않았습니다.</p>' : ""}
         ${!basis && date ? `<p class="context-basis">${escape(formatDate(date))} 기준</p>` : ""}
-        ${sourceLink(reference)}
+        ${sourceCredit(source)}${sourceCredit(reference)}
       </details>
     </section>`;
   }

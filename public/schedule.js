@@ -206,7 +206,7 @@ export function renderSchedule(main, briefings, params) {
   const picture = window.documentPictureInPicture;
   const canFloat = typeof picture?.requestWindow === "function";
   const isAndroid = navigator.userAgentData?.platform === "Android" || /\bAndroid\b/.test(navigator.userAgent);
-  const launchesAndroid = isAndroid && !canFloat;
+  const launchesAndroid = isAndroid;
   main.classList.add("schedule-page");
   if (compact) document.body.classList.add("fixture-mini-body");
   if (mini) main.classList.add("fixture-mini");

@@ -3,7 +3,8 @@ import { roundSnapshot } from "./fixtures.js";
 import { attachTeamContext, teamContextPanels } from "./team-context.js";
 import { fetchAutomaticContext } from "./auto-context.js";
 import { mountMatchOverlay } from "./match-overlay.js";
-import { mountDateRoller } from "./date-roller.js";
+import { fixtureDateKeys, koreaDateKey, mountDateRoller } from "./date-roller.js";
+import { mascotArt } from "./match-visuals.js";
 
 const publishedRound = {
   ...roundSnapshot,
@@ -196,19 +197,25 @@ export function renderSchedule(main, briefings, params) {
   const compact = mini || overlayRoute;
   const pinnedRound = /^\d{6}$/.test(params.get("round") ?? "") ? Number(params.get("round")) : null;
   let view = fixtureNumber === null ? "schedule" : "all";
-  let chosenDate = "";
+  let chosenDate = fixtureNumber === null ? koreaDateKey() : "";
   let limit = pageSize;
   let sport = sportNames.includes(params.get("sport")) ? params.get("sport") : "전체";
+  const picture = window.documentPictureInPicture;
+  const canFloat = typeof picture?.requestWindow === "function";
   main.classList.add("schedule-page");
   if (compact) document.body.classList.add("fixture-mini-body");
   if (mini) main.classList.add("fixture-mini");
   if (overlayRoute) main.classList.add("overlay-route");
   main.innerHTML = compact ? "" : `<section class="schedule-top">
     <div class="schedule-topline">
-      <div><p class="schedule-label" id="round-label"></p><h1>경기 일정</h1></div>
-      <button type="button" class="overlay-launch" id="overlay-launch" aria-expanded="false">오버레이 실행</button>
+      <div class="schedule-copy">
+        <p class="schedule-label" id="round-label"></p>
+        <h1>경기 일정</h1>
+        <p class="schedule-meta"><span id="round-count"></span> · 한국 시간 · <span id="round-updated" role="status"></span></p>
+        <button type="button" class="overlay-launch" id="overlay-launch" aria-expanded="false">${canFloat ? "오버레이 실행" : "웹 미니 보기"}</button>
+      </div>
+      <div class="schedule-mascot" aria-hidden="true">${mascotArt("standing",false,{eager:true})}</div>
     </div>
-    <p class="schedule-meta"><span id="round-count"></span> · 한국 시간 · <span id="round-updated" role="status"></span></p>
   </section>
   <div class="schedule-controls">
     <nav class="schedule-views" aria-label="경기 보기">${views.map(([id, label]) => `<button type="button" data-view="${id}">${label}</button>`).join("")}</nav>
@@ -255,11 +262,12 @@ export function renderSchedule(main, briefings, params) {
   }
 
   function updateDates() {
-    const dates = [...new Set(roundData.matches.map(match => match.startsAt.slice(0,10)))];
+    const today = koreaDateKey();
+    const dates = fixtureDateKeys(roundData.matches,today);
     const signature = dates.join(",");
     if (dateSignature === signature) return;
     dateSignature = signature;
-    if (chosenDate && !dates.includes(chosenDate)) chosenDate = "";
+    if (chosenDate && !dates.includes(chosenDate)) chosenDate = today;
     dateRoller.update(dates,chosenDate);
   }
 
@@ -352,8 +360,7 @@ export function renderSchedule(main, briefings, params) {
       launcher.setAttribute("aria-expanded","false");
       launcher.focus({preventScroll:true});
     }
-    const picture = window.documentPictureInPicture;
-    if (typeof picture?.requestWindow === "function") {
+    if (canFloat) {
       launcher.disabled = true;
       let floating;
       try {

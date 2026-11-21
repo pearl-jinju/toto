@@ -2,6 +2,19 @@ const calendarDate = new Intl.DateTimeFormat("ko-KR", {
   timeZone:"Asia/Seoul", month:"long", day:"numeric", weekday:"short"
 });
 
+const kstDay = new Intl.DateTimeFormat("en-CA", {
+  timeZone:"Asia/Seoul", year:"numeric", month:"2-digit", day:"2-digit"
+});
+
+export function koreaDateKey(now = new Date()) {
+  const parts = Object.fromEntries(kstDay.formatToParts(now).map(({type,value})=>[type,value]));
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+export function fixtureDateKeys(matches,today) {
+  return [...new Set([today,...matches.map(match=>match.startsAt.slice(0,10))])].sort();
+}
+
 export function mountDateRoller(container, onChange) {
   const owner = container.ownerDocument;
   const view = owner.defaultView;

@@ -52,7 +52,7 @@ button,input,.primary{font:inherit;border:1px solid var(--line);background:#1326
 
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .schedule-page{--table:#0f1c29;--row-line:#233241;--soft:#172836}
-.schedule-top{padding:31px 0 19px}
+.schedule-top{padding:20px 0 17px}
 .schedule-top h1{font-size:clamp(1.9rem,4vw,2.7rem);letter-spacing:-.05em;margin-bottom:4px}
 .schedule-label{margin-bottom:4px;color:var(--accent);font-size:.875rem;font-weight:750}
 .schedule-meta{color:var(--muted);font-size:.875rem;margin:0}
@@ -128,7 +128,7 @@ button,input,.primary{font:inherit;border:1px solid var(--line);background:#1326
   .fixture-line,.fixture-column-labels{grid-template-columns:51px minmax(95px,.8fr) minmax(0,2.7fr) 61px 58px;gap:8px;padding-inline:10px}
 }
 @media(max-width:640px){
-  .schedule-top{padding-top:23px}
+  .schedule-top{padding-top:14px}
   .schedule-controls{display:flex;flex-direction:column;align-items:stretch;gap:9px}
   .schedule-views{align-self:stretch}
   .schedule-refine{justify-content:flex-start}
@@ -414,7 +414,36 @@ details[open] > summary .context-plus::after {transform:none}
   .mb-h2h th:first-child{width:22%}
 }
 
-.schedule-topline {display:flex;align-items:center;justify-content:space-between;gap:12px}
+.schedule-topline {
+  position:relative;isolation:isolate;display:grid;grid-template-columns:minmax(0,1fr) minmax(155px,31%);
+  align-items:center;gap:14px;overflow:hidden;padding:14px clamp(16px,3.4vw,35px);
+  border:1px solid #46516a;border-radius:17px;
+  background:radial-gradient(ellipse at 72% 67%,#ad71344a,transparent 40%),
+    radial-gradient(ellipse at 103% 4%,#5275b75c,transparent 53%),linear-gradient(108deg,#132331,#18273d);
+}
+.schedule-copy {min-width:0;position:relative;z-index:1}
+.schedule-topline .schedule-label {color:#ffdc9c}
+.schedule-topline .schedule-meta {color:#c4d4e5}
+.schedule-topline .overlay-launch {margin-top:11px;background:#f3d194;border-color:#f9dfa9;color:#2f2414}
+.schedule-topline .overlay-launch:hover {background:#ffe2a9}
+.schedule-mascot {position:relative;display:grid;place-items:center;min-width:0}
+.schedule-mascot::before {content:"";position:absolute;width:92%;height:74%;border:1px solid #dce8ff52;border-radius:50%;transform:rotate(-15deg)}
+.schedule-mascot::after {content:"";position:absolute;inset:4% 1%;background:
+  radial-gradient(circle at 12% 34%,#ffdc9c 0 1px,transparent 2.5px),
+  radial-gradient(circle at 88% 18%,#d8e6ff 0 1px,transparent 2.5px),
+  radial-gradient(circle at 96% 62%,#d8e6ff 0 1px,transparent 2.5px)}
+.schedule-mascot .mascot-art {width:clamp(130px,17vw,170px);max-height:none;z-index:1;filter:drop-shadow(0 9px 14px #08122377)}
+.overlay-heading {min-width:0;display:flex;align-items:center;gap:5px}
+.overlay-heading strong,.overlay-heading small {display:block}
+.overlay-heading small {font-size:.72rem;color:var(--muted);line-height:1.15}
+.overlay-mascot {width:32px;height:32px;flex:none}
+@media(max-width:580px){
+  .schedule-topline {grid-template-columns:minmax(0,1fr) clamp(76px,26vw,109px);gap:6px;border-radius:13px;padding:12px}
+  .schedule-topline .schedule-label,.schedule-topline .schedule-meta {font-size:.75rem}
+  .schedule-topline .overlay-launch {margin-top:8px;padding-inline:9px}
+  .schedule-mascot .mascot-art {width:100%}
+  .schedule-mascot::before {width:106%}
+}
 .overlay-launch {display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:44px;padding:0 13px;border:1px solid #54877c;border-radius:10px;background:#17352f;color:#c8f8e8;font-size:.89rem;font-weight:760;white-space:nowrap}
 .overlay-launch::before {content:"";width:17px;height:12px;border:1px solid currentColor;border-radius:3px;background:linear-gradient(currentColor,currentColor) right 2px bottom 2px/6px 4px no-repeat}
 .overlay-launch:hover {background:#21483e}
@@ -454,6 +483,6 @@ details[open] > summary .context-plus::after {transform:none}
 .date-roller-track.is-dragging {scroll-snap-type:none;cursor:grabbing}
 .date-roller-track:focus-visible {outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
 .date-roller-item {display:grid;place-items:center;min-height:40px;flex:0 0 var(--date-width);scroll-snap-align:center;scroll-snap-stop:always;font-size:.84rem;font-weight:610;color:var(--muted);white-space:nowrap;border-radius:7px}
-.date-roller-item.is-active {background:#193831;color:#c8f8e8;box-shadow:inset 0 -2px #82e3ca;font-weight:770}
+.date-roller-item.is-active {background:linear-gradient(100deg,#34312e,#29394e);color:#fff0cf;box-shadow:inset 0 -2px #e3b779;font-weight:770}
 .overlay-dates {margin-inline:10px;--date-width:clamp(88px,29vw,116px)}
 .overlay-dates .date-roller-item {min-height:34px;font-size:.79rem}

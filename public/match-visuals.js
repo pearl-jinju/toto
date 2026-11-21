@@ -31,11 +31,12 @@ export function scoringPose(outlook) {
   return "standing";
 }
 
-export function mascotArt(pose = "standing", small = false) {
+export function mascotArt(pose = "standing", small = false, {eager = false} = {}) {
   const src = mascotFiles[pose] ?? mascotFiles.standing;
+  const loading = eager ? 'loading="eager" fetchpriority="high"' : 'loading="lazy"';
   if (small) return `<img class="mascot-icon" src="${src}" alt="" width="30" height="30" loading="lazy" decoding="async">`;
   return `<span class="mascot-art" data-pose="${pose}" style="--mascot-image:url('${src}')" aria-hidden="true">
-    <img src="${src}" alt="" width="120" height="120" loading="lazy" decoding="async">
+    <img src="${src}" alt="" width="120" height="120" ${loading} decoding="async">
   </span>`;
 }
 

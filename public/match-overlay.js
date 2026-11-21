@@ -1,12 +1,19 @@
 import { escapeHtml as escape } from "./source-links.js";
-import { mountDateRoller } from "./date-roller.js";
+import { fixtureDateKeys, koreaDateKey, mountDateRoller } from "./date-roller.js";
+import { mascotArt } from "./match-visuals.js";
 
 const sports = ["전체","축구","야구","농구","배구"];
 
 export function mountMatchOverlay(container, {close, renderMatch, mode, initialMatch}) {
   container.innerHTML = `<section class="match-overlay" role="region" aria-label="경기 분석 오버레이" data-mode="${mode}">
     <div class="overlay-header">
-      <strong tabindex="-1">경기 분석</strong>
+      <div class="overlay-heading">
+        <span class="overlay-mascot" aria-hidden="true">${mascotArt("courtside",true)}</span>
+        <div>
+          <strong tabindex="-1">${mode === "dock" ? "웹 미니 보기" : "경기 분석"}</strong>
+          ${mode === "dock" ? '<small>이 웹페이지 안에 표시됩니다</small>' : ""}
+        </div>
+      </div>
       <div class="overlay-actions">
         <button type="button" class="overlay-back" hidden>경기 목록</button>
         ${close ? '<button type="button" class="overlay-close" aria-label="오버레이 닫기">닫기</button>' : ""}
@@ -39,7 +46,7 @@ export function mountMatchOverlay(container, {close, renderMatch, mode, initialM
   let activeRound;
   let listMarkup = null;
   let datesSignature = "";
-  let chosenDate = "";
+  let chosenDate = koreaDateKey();
   const dateRoller = mountDateRoller(panel.querySelector(".overlay-dates"),date=>{
     chosenDate = date;
     results();
@@ -120,11 +127,12 @@ export function mountMatchOverlay(container, {close, renderMatch, mode, initialM
     destroy: dateRoller.destroy,
     update(next,round) {
       matches = next;
-      const dates = [...new Set(next.map(match=>match.startsAt.slice(0,10)))];
+      const today = koreaDateKey();
+      const dates = fixtureDateKeys(next,today);
       const signature = dates.join(",");
       if (signature !== datesSignature) {
         datesSignature = signature;
-        if (!dates.includes(chosenDate)) chosenDate = "";
+        if (chosenDate && !dates.includes(chosenDate)) chosenDate = today;
         dateRoller.update(dates,chosenDate);
       }
       if (activeRound != null && activeRound !== round) {

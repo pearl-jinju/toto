@@ -66,17 +66,17 @@ function renderForecastBasis(basis) {
   </dl>`;
 }
 
-function renderFact(fact) {
+function renderFact(fact, completed = false) {
   const {title, value, text, date, source, reference} = fact;
   if (fact.category === "weather") {
     const basis = forecastBasis(fact);
     return `<section class="context-item">
       ${weatherPanel(weatherVisual(fact))}
-      ${basis ? `<p class="weather-origin"><strong>${escape(basis.city)} 도심 기준</strong> <span>노르웨이 기상청(MET Norway) · 경기 시간대 예보</span></p>` : ""}
+      ${basis ? `<p class="weather-origin"><strong>${escape(basis.city)} 도심 기준</strong> <span>노르웨이 기상청(MET Norway) · ${completed ? "경기 전 예보" : "경기 시간대 예보"}</span></p>` : ""}
       <p class="weather-explanation">${escape(value ?? title)}</p>
       <details class="weather-evidence"><summary>${basis ? "예보 시각·기준 위치" : "환경 해석과 출처"}</summary>
         ${renderForecastBasis(basis)}
-        <p>${escape(text)}</p>
+        ${!completed || !basis ? `<p>${escape(text)}</p>` : ""}
         ${basis ? '<p class="context-basis">도심 대표 지점의 예보입니다. 경기장 잔디나 관중석에서 측정한 값은 확인되지 않았습니다.</p>' : ""}
         ${!basis && date ? `<p class="context-basis">${escape(formatDate(date))} 기준</p>` : ""}
         ${sourceCredit(source)}${sourceCredit(reference)}
@@ -100,8 +100,8 @@ function renderFact(fact) {
     ${fact.category === "players" || value == null || value === ""
       ? `<h4>${escape(title)}</h4>${value ? `<p class="context-number">${escape(value)}</p>` : ""}`
       : `<h4 class="context-number">${escape(value)}</h4><p class="context-basis">${escape(title)}</p>`}
-    ${renderInterpretation(fact.insight,true)}
-    ${text ? `<p>${escape(text)}</p>` : ""}
+    ${completed ? "" : renderInterpretation(fact.insight,true)}
+    ${text && !(completed && fact.category === "schedule") ? `<p>${escape(text)}</p>` : ""}
     ${date ? `<p class="context-basis">${escape(formatDate(date))}</p>` : ""}
     ${names.length ? `<details class="weather-evidence"><summary>선수 이름 원문</summary><p>${names.map(escape).join(" · ")}</p></details>` : ""}
     ${sourceLink(source)}${sourceLink(reference)}
@@ -127,22 +127,27 @@ export function outlookInterpretations(context) {
   return [context?.weatherRead, context?.scheduleRead, playerRead];
 }
 
-export function renderMatchFlow(context, cancelled = false) {
-  if (cancelled) return "";
+export function fixtureContextMatch(match, context) {
+  const fixture = context?.fixture;
+  return match && fixture && ["number","league","home","away","startsAt"].every(key=>fixture[key] === match[key]) ? context : null;
+}
+
+export function renderMatchFlow(context, closed = false) {
+  if (closed || context?.fixture?.status === "finished") return "";
   const preview = context?.flowPreview;
   const flow = preview ?? context?.outlook?.flow;
   const published = flow?.published ? flow.published.replaceAll("-", ".") : "";
   return `<section class="venue-flow">
-    <span>경기 양상${context?.fixture?.status === "finished" ? " · 경기 전 자료 기준" : ""}</span>
+    <span>경기 양상</span>
     <h4 class="${flow?.headline ? "analysis-keyword" : ""}">${escape(flow?.headline ?? "득점 흐름을 비교할 경기 기록을 확인 중입니다.")}</h4>
     ${flow?.basis ? `<p>${escape(flow.basis)}</p>` : ""}
     ${published ? `<div class="venue-flow-source"><time datetime="${escape(flow.published)}">${escape(published)} 발표</time>${sourceLink(flow.source)}</div>` : ""}
   </section>`;
 }
 
-export function renderAutomaticFactors(context,category) {
+export function renderAutomaticFactors(context,category,completed = false) {
   const facts = Array.isArray(context?.factors) ? context.factors : [];
-  return facts.filter(fact => fact?.category === category && fact.title && sourceLink(fact.source)).map(renderFact).join("");
+  return facts.filter(fact => fact?.category === category && fact.title && sourceLink(fact.source)).map(fact=>renderFact(fact,completed)).join("");
 }
 
 function fixtureCheck(match,round,context,available) {
@@ -180,11 +185,12 @@ export function weatherFacts(context) {
   return roof ? [{...roof, category:"weather"}] : [];
 }
 
-export function renderWeatherFacts(context) {
-  return renderInterpretation(context?.weatherRead,true) + weatherFacts(context).map(renderFact).join("");
+export function renderWeatherFacts(context, completed = false) {
+  return (completed ? "" : renderInterpretation(context?.weatherRead,true)) + weatherFacts(context).map(fact=>renderFact(fact,completed)).join("");
 }
 
 export function automaticCards(match, round, context, existingIds, card, opened) {
+  const completed = matchStatus(match)[0] === "done";
   const present = new Set(existingIds);
   const facts = Array.isArray(context?.factors) ? context.factors : [];
   const grouped = new Map();
@@ -203,18 +209,18 @@ export function automaticCards(match, round, context, existingIds, card, opened)
       const weather = weatherFacts(context);
       if (weather.length) present.add(category);
       const visual = weatherVisual(weather[0]);
-      supplemental.push(card(category,title,icon,weatherHint(visual),weather.length ? renderWeatherFacts(context) : weatherPanel(visual),opened));
+      if (!completed || weather.length) supplemental.push(card(category,completed ? "경기 전 환경 자료" : title,icon,weatherHint(visual),weather.length ? renderWeatherFacts(context,completed) : weatherPanel(visual),opened));
       continue;
     }
-    const scheduleRead = category === "schedule" ? context?.scheduleRead : null;
+    const scheduleRead = category === "schedule" && !completed ? context?.scheduleRead : null;
     if (items?.length || scheduleRead) {
       present.add(category);
       const venue = category === "venue" ? items.find(fact=>Array.isArray(fact.venueFacts)) : null;
       const titleText = venue ? "구장 특징" : category === "venue" && items.every(fact=>fact.title==="개최 도시") ? "경기장 위치" : title;
       const hintText = venue ? venue.venueFacts.slice(0,2).map(([,value])=>value).join(" · ") : hint;
-      const flow = category === "venue" ? renderMatchFlow(context,match.voided) : "";
+      const flow = category === "venue" ? renderMatchFlow(context,match.voided || completed) : "";
       const reading = renderInterpretation(scheduleRead,true);
-      supplemental.push(card(category,titleText,icon,hintText,flow + reading + (items ?? []).map(renderFact).join(""),opened));
+      supplemental.push(card(category,titleText,icon,hintText,flow + reading + (items ?? []).map(fact=>renderFact(fact,completed)).join(""),opened));
     }
   }
 

@@ -8,7 +8,7 @@ from pathlib import Path
 from threading import Event, Lock, Thread
 from time import monotonic
 
-from scripts.fixture_matching import analyze_fixture, match_fixtures, score_of
+from scripts.fixture_matching import analyze_fixture, match_fixtures, score_of, timestamp
 from scripts.provider_openfootball import fetch_events as openfootball
 from scripts.provider_extra import fetch_events as other_scores, historical_results
 from scripts.provider_match_stats import get_match_stats
@@ -129,6 +129,33 @@ def recorded_periods(fixture, event):
 
 def factor_key(factor):
     return factor.get("category"), factor.get("title")
+
+
+def pregame_outlook(existing, current):
+    """Keep a recorded pre-kickoff forecast separate from recomputed context."""
+    fixture = current["fixture"]
+    kickoff = timestamp(fixture.get("startsAt"))
+    if kickoff is None or fixture.get("status") == "cancelled":
+        return None
+
+    keys = ("number", "league", "home", "away", "startsAt")
+    previous_fixture = existing.get("fixture", {})
+    same_match = all(previous_fixture.get(key) == fixture.get(key) for key in keys)
+    if same_match:
+        archived = existing.get("pregameOutlook")
+        captured_at = timestamp(archived.get("capturedAt")) if archived else None
+        if captured_at is not None and captured_at < kickoff:
+            return archived
+
+    for snapshot in (existing, current) if same_match else (current,):
+        captured_at = timestamp(snapshot.get("updatedAt"))
+        forecast = snapshot.get("outlook")
+        status = snapshot.get("fixture", {}).get("status")
+        if forecast and status == "scheduled" and captured_at is not None and captured_at < kickoff:
+            fields = ("kind", "headline", "range", "projection", "result", "source")
+            return {**{key: forecast[key] for key in fields if key in forecast},
+                    "capturedAt": snapshot["updatedAt"]}
+    return None
 
 
 def combine_context(existing, current):
@@ -320,7 +347,13 @@ class ContextWorker:
                     "checked": ["경기 이력", "경기장 환경", "공개 경기 자료"],
                 },
             }
-            merged = combine_context(old_contexts.get(str(number), {}), details)
+            previous_context = old_contexts.get(str(number), {})
+            merged = combine_context(previous_context, details)
+            initial = pregame_outlook(previous_context, details)
+            if initial:
+                merged["pregameOutlook"] = initial
+            else:
+                merged.pop("pregameOutlook", None)
             merged["weatherRead"] = interpret_match_environment(fixture, merged["factors"])
             merged["scheduleRead"] = interpret_match_schedule(fixture, merged["factors"], merged)
             contexts[str(number)] = merged

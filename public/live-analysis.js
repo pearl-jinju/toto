@@ -37,7 +37,7 @@ function readState(sport, side, gap, live) {
 function totalRead(match, live, total) {
   const line = match.total?.line;
   const unit = {축구:"골", 농구:"점", 야구:"점"}[match.sport];
-  if (!unit || !Number.isFinite(line) || line <= 0 || /연장|승부차기/.test(live.period ?? "")) return "";
+  if (!unit || match.total?.status === "void" || !Number.isFinite(line) || line <= 0 || /연장|승부차기/.test(live.period ?? "")) return "";
   const remaining = Math.floor(line)+1-total;
   return remaining > 0
     ? `현재 합계 ${total}${unit}. ${remaining}${unit} 더 나오면 프로토 기준 ${line}${unit}을 넘습니다.`

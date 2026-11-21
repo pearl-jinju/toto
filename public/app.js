@@ -2,8 +2,11 @@ import { sourceCredit, sourceLink } from "./source-links.js";
 import { fixtureHistoryHref, renderHistoryPage } from "./history-report.js";
 import { snapshot, sources, games } from "./data.js";
 import { research } from "./research.js";
-import { publishedMatchInfo, renderSchedule, withOfficialStatus } from "./schedule.js";
-import { fetchAutomaticContext, renderOutlook, renderWeatherFacts, outlookInterpretations } from "./auto-context.js";
+import { fetchPublishedResult, publishedMatchInfo, renderSchedule } from "./schedule.js";
+import { renderQuickOdds } from "./team-context.js";
+import { matchScore, matchStatus } from "./live-scores.js";
+import { renderPostMatchReview } from "./post-match-review.js";
+import { fetchAutomaticContext, fixtureContextMatch, renderOutlook, renderWeatherFacts, outlookInterpretations } from "./auto-context.js";
 import { curatedWeatherVisual, weatherPanel } from "./match-visuals.js";
 import { sponsorSlot } from "./sponsor-slots.js";
 
@@ -71,24 +74,25 @@ function marketBriefing(game) {
 function metricList(rows) {
   return `<dl class="metrics">${rows.map(([label,value,ref]) => `<div><dt>${label}</dt><dd><strong>${value}</strong>${source(ref)}</dd></div>`).join("")}</dl>`;
 }
-function weatherCard(game) {
+function weatherCard(game, completed) {
   const [conditions, details, forecastRef] = game.weather;
   const assessment = game.weatherAssessment;
+  const title = completed ? "경기 전 환경 자료" : "경기장 환경";
   if (!assessment) {
-    return `<section class="block weather-card"><h2>경기장 환경</h2>
+    return `<section class="block weather-card"><h2>${title}</h2>
       <div data-brief-weather>${weatherPanel(curatedWeatherVisual(game))}<strong>${conditions}</strong><p>${details}</p>${sourceCredit(sources[forecastRef])}</div></section>`;
   }
 
   const { readings, basis, impact, watch, refs } = assessment;
   const credits = [forecastRef, ...refs].map(ref => sourceCredit(sources[ref])).join("");
   return `<section class="block weather-card">
-    <h2>경기장 환경</h2>
+    <h2>${title}</h2>
     <div data-brief-weather>
       ${weatherPanel({...curatedWeatherVisual(game),readings:readings.map(([label,value])=>({label,value}))})}
       <p class="weather-origin"><strong>${basis}</strong></p>
-      <p class="weather-explanation">${impact}</p>
-      <details class="weather-evidence"><summary>중계에서 볼 점 · 출처</summary>
-        <p>${watch}</p><p class="muted">${basis} · ${details}</p>
+      ${completed ? "" : `<p class="weather-explanation">${impact}</p>`}
+      <details class="weather-evidence"><summary>${completed ? "경기 전 발표 자료 · 출처" : "중계에서 볼 점 · 출처"}</summary>
+        ${completed ? "" : `<p>${watch}</p>`}<p class="muted">${basis} · ${details}</p>
         ${credits}
       </details>
     </div>
@@ -111,46 +115,52 @@ function playerBriefing(game) {
   </section>`;
 }
 
-function briefing(game, compact) {
+function briefing(game, compact, {fixture,round}) {
+  const completed = fixture && matchStatus(fixture)[0] === "done";
+  const status = fixture ? matchStatus(fixture)[1] : game.status;
+  const score = fixture ? matchScore(fixture)?.join(" – ") : game.result;
   return `<section class="${compact ? "minihead" : "hero"}">
     <p class="kicker">${game.sport} · ${game.league} · ${game.listed ? `프로토 138회차${research.numbers[game.id] ? " · " + research.numbers[game.id] + "번" : ""}` : "리그 일정 참고"} </p>
     <h1>${game.home} vs ${game.away}</h1>
     <p class="muted">${game.time} KST · ${game.venue}</p>
-    <p><span class="pill">${game.status}${game.result ? " · " + game.result : ""}</span></p>
-    ${game.listed ? '<div data-brief-outlook></div>' : ""}
-    <p>${game.summary}</p>${source(game.source)}
+    <p><span class="pill">${status}${score ? " · " + score : ""}</span></p>
+    ${completed ? renderQuickOdds(fixture,round) : ""}
+    ${game.listed ? `<div data-brief-outlook>${completed ? renderPostMatchReview(fixture,null,{source:round.source}) : ""}</div>` : ""}
+    ${completed || fixture?.voided ? "" : `<p>${game.summary}</p>`}${source(game.source)}
   </section>
   <div class="brief-grid">
-    ${weatherCard(game)}
+    ${weatherCard(game,completed)}
     <section class="block"><h2>홈·원정</h2><p><strong>홈</strong> ${game.home} · <strong>원정</strong> ${game.away}</p>
       ${game.splits ? metricList(game.splits) : '<p class="muted">비교 가능한 홈·원정 분리 기록은 아직 확인되지 않았습니다.</p>'}</section>
     <section class="block"><h2>주요 지표</h2>${metricList(game.metrics)}</section>
-    <section class="block"><h2>해석과 확인 포인트</h2><ul>${game.watch.map(note => `<li>${note}</li>`).join("")}</ul></section>
+    ${completed ? "" : `<section class="block"><h2>해석과 확인 포인트</h2><ul>${game.watch.map(note => `<li>${note}</li>`).join("")}</ul></section>`}
   </div>
   ${playerBriefing(game)}
   ${marketBriefing(game)}
   <section class="block"><h2>최근 7일 이슈</h2><div class="timeline">${game.events.map(([date,type,title,body,ref]) =>
     `<article><p class="kicker">${date} · ${type}</p><h3>${title}</h3><p>${body}</p>${source(ref)}</article>`).join("")}</div></section>
-  <section class="block"><h2>추가 분석</h2>
-    ${guide(game.sport)}
-  </section>
-  <p class="muted">${snapshot} 자료 · 부상과 출전 상태는 이후 공식 발표에 따라 바뀔 수 있습니다.</p>`;
+  ${completed ? "" : `<section class="block"><h2>추가 분석</h2>${guide(game.sport)}</section>`}
+  <p class="muted">${snapshot} 경기 전 수집 자료</p>`;
 }
-function loadBriefingOutlook(container,game) {
+function loadBriefingOutlook(container,game,{fixture,round}) {
   const target = container.querySelector("[data-brief-outlook]");
   const {roundId,number} = publishedMatchInfo(game);
-  if (!target || !number) return;
+  if (!target || !number || fixture?.voided) return;
+  const completed = fixture && matchStatus(fixture)[0] === "done";
   let remaining = 4;
   async function load() {
     if (!target.isConnected || remaining-- <= 0) return;
     try {
       const packet = await fetchAutomaticContext(roundId);
-      const context = packet?.contexts?.[number];
+      const context = fixtureContextMatch(fixture,packet?.contexts?.[number]);
+      if (!target.isConnected) return;
       if (context) {
         const interpretations = outlookInterpretations(context);
-        if (context.outlook || context.matchAngle || interpretations.some(Boolean)) target.innerHTML = renderOutlook(context.outlook,false,fixtureHistoryHref(number,roundId),
+        if (completed) target.innerHTML = renderPostMatchReview(fixture,context.pregameOutlook ?? context.outlook,
+          {historyHref:fixtureHistoryHref(number,roundId),source:round.source,stats:context.matchStats});
+        else if (context.outlook || context.matchAngle || interpretations.some(Boolean)) target.innerHTML = renderOutlook(context.outlook,false,fixtureHistoryHref(number,roundId),
           {angle:context.matchAngle,interpretations,notes:context.records ?? []});
-        const weather = renderWeatherFacts(context);
+        const weather = renderWeatherFacts(context,completed);
         const weatherSlot = container.querySelector("[data-brief-weather]");
         if (weatherSlot && weather) weatherSlot.innerHTML = weather;
         return;
@@ -164,12 +174,17 @@ function loadBriefingOutlook(container,game) {
 function showBriefing(game) {
   document.title = `${game.home} vs ${game.away} · 매치인덱스`;
   document.body.classList.toggle("compact", mini);
-  main.innerHTML = `<nav class="actions detail-nav" aria-label="브리핑 탐색">
-    <a href="./?sport=${game.sport}">경기 목록</a>
-    ${mini ? `<a href="${matchUrl(game,false)}">전체 브리핑</a>` : ""}</nav>${briefing(game,mini)}${mini ? "" : sponsorSlot("detail",params.get("ads") === "preview")}`;
-  loadBriefingOutlook(main,game);
+  const info = publishedMatchInfo(game);
+  function draw(current) {
+    main.innerHTML = `<nav class="actions detail-nav" aria-label="브리핑 탐색">
+      <a href="./?sport=${game.sport}">경기 목록</a>
+      ${mini ? `<a href="${matchUrl(game,false)}">전체 브리핑</a>` : ""}</nav>${briefing(game,mini,current)}${mini ? "" : sponsorSlot("detail",params.get("ads") === "preview")}`;
+    loadBriefingOutlook(main,game,current);
+  }
+  draw(info);
+  fetchPublishedResult(game).then(result=>{if (result) draw(result);});
 }
 
 if (params.get("view") === "history") renderHistoryPage(main,params);
-else if (selected && params.get("view") !== "overlay") showBriefing(withOfficialStatus(selected));
+else if (selected && params.get("view") !== "overlay") showBriefing(selected);
 else renderSchedule(main, games, params);

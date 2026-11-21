@@ -54,6 +54,25 @@ def fixture_key(row):
     return tuple(row[key] for key in ("itemCode", "leagueCode", "gameDate", "homeId", "awayId"))
 
 
+def settled_outcome(row, choices):
+    if row["protoStatus"] != "4" or row["gameReject"] not in (None, "0", 0):
+        return None
+    game_result = str(row.get("gameResult"))
+    if game_result not in {"0", "1", "2"}:
+        return None
+    index = int(game_result)
+    price = [row["winAllot"], row["drawAllot"], row["loseAllot"]][index]
+    return choices[index] if type(price) in (int, float) and price > 1 else None
+
+
+def total_market(row, line, under, over):
+    status = "void" if row["gameReject"] not in (None, "0", 0) else SALE_STATE.get(row["protoStatus"], "unknown")
+    outcome = settled_outcome(row, ("under", None, "over"))
+    aggregate = re.fullmatch(r"(\d+):0", row.get("mchScore") or "") if status == "settled" else None
+    return {"line": line, "under": under, "over": over, "status": status,
+            "outcome": outcome, "points": int(aggregate[1]) if aggregate else None}
+
+
 def extract_fixtures(round_id):
     source, data = read_round(round_id)
     as_of = datetime.now(KST)
@@ -64,12 +83,12 @@ def extract_fixtures(round_id):
         if row["betId"] != TOTAL_MARKET.get(row["itemCode"]) or (row["winTxt"], row["loseTxt"]) != ("언더", "오버"):
             continue
         line, under, over = row["winHandi"], row["winAllot"], row["loseAllot"]
-        if row["gameReject"] in (None, "0", 0) and row["winHandi"] == row["loseHandi"] and (
+        if row["winHandi"] == row["loseHandi"] and (
             type(line) in (int, float) and line > 0 and type(under) in (int,float) and under > 1
             and type(over) in (int,float) and over > 1
         ):
             key = fixture_key(row)
-            total = {"line": line, "under": under, "over": over}
+            total = total_market(row, line, under, over)
             if key in totals and totals[key] != total:
                 totals[key] = None
             else:
@@ -106,6 +125,7 @@ def extract_fixtures(round_id):
             "status": status,
             "saleStatus": sale_status,
             "result": result,
+            "outcome": settled_outcome(row, ("home", "draw", "away")),
             "total": totals.get(fixture_key(row)),
             "odds": [odd if odd and odd > 0 else None for odd in odds] if any(odds) else None,
         }

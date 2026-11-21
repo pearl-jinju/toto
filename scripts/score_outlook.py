@@ -81,7 +81,7 @@ def market_context(fixture, source, total, unit):
 
 
 def market_parts(total):
-    if isinstance(total, dict):
+    if isinstance(total, dict) and total.get("status") != "void":
         fields = [total.get(key) for key in ("line", "under", "over")]
         if all(type(n) in (int, float) for n in fields) and 0 < fields[0] < 600 and min(fields[1:]) > 1:
             return fields
@@ -233,9 +233,14 @@ def build_outlook(fixture, matched_event, events, factors, source, verified=()):
     else:
         scoring_pose = "resting" if probability > .5 else "running"
     result = build_result_projection(fixture, home_estimate, away_estimate, selected, league, source)
+    projection = {"expectedTotal": float(expected), "unit": unit, "range": [low, high]}
+    if probability is not None and criterion is not None:
+        projection["line"] = criterion
+        projection["direction"] = {"resting": "under", "running": "over"}.get(scoring_pose, "neutral")
     return {
         **({"result": result} if result else {}),
         "kind": "model", "pose": scoring_pose, "headline": headline, "basis": basis, "range": f"{low}–{high}{unit}",
+        "projection": projection,
         "flow": match_flow(fixture, unit, midpoint, home_estimate, away_estimate),
         "weather": weather_note, "source": sources[0], "archived": fixture.get("status") == "finished",
         "evidence": outlook_evidence(fixture, (home, away), selected, matchup_rows, len(league)),

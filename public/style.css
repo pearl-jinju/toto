@@ -789,3 +789,30 @@ a.overlay-launch {text-decoration:none}
 .live-interpretation p{margin:0}
 .live-interpretation strong{color:#d5fff3}
 .live-interpretation .live-interpretation-total{margin-top:4px;color:#bad4d7;font-size:.79rem}
+
+.quick-market-table td.quick-market-hit>strong {display:inline-flex;align-items:center;justify-content:center;gap:3px;background:#1a3e36;box-shadow:inset 0 0 0 1px #6acbaa;color:#d9fff2}
+.quick-market-check {color:#8aebca;font-size:.82em}
+.quick-market-result-note {margin:0 0 7px;color:#b7cbdb;font-size:.76rem}
+.quick-market-result-note[data-confirmed=true] {color:#a8ecd8}
+.quick-market-totals {margin-top:7px}
+
+.post-match-review{display:grid;gap:9px;margin:0 0 11px;padding:11px;border:1px solid #406477;border-left:3px solid #6ed6bd;border-radius:10px;background:linear-gradient(135deg,#183438,#142334 62%)}
+.post-match-review[data-result-source=external]{border-left-color:#deb877}
+.post-match-review-head{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:3px 8px}
+.post-match-review-head h4,.post-match-comparison h5{margin:0;color:#e9f7fc}
+.post-match-review-head h4{font-size:1rem}
+.post-match-review-head>span{color:#b3ddcf;font-size:.74rem}
+.post-match-review[data-result-source=external] .post-match-review-head>span{color:#eed4a7}
+.post-match-comparison{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,144px),1fr));gap:7px}
+.post-match-comparison>div{min-width:0;padding:8px;border:1px solid #355364;border-radius:8px;background:#11212e}
+.post-match-comparison h5{font-size:.8rem}
+.post-match-comparison small{display:block;color:#a7bfca;font-size:.69rem}
+.post-match-comparison p{margin:4px 0 0;color:#cee5ed;font-size:.79rem;line-height:1.45;overflow-wrap:anywhere}
+.post-match-score{display:block;color:#bdffea;font-size:1.34rem;line-height:1.28;font-variant-numeric:tabular-nums}
+.post-match-deltas{display:grid;gap:5px;margin:0;padding:0;list-style:none}
+.post-match-deltas>li{display:flex;align-items:baseline;gap:8px;margin:0;color:#d6e9f0;font-size:.79rem}
+.post-match-deltas strong{flex:none;color:#a9c2d0}
+.post-match-deltas [data-verdict=same] strong{color:#9be5cb}
+.post-match-deltas [data-verdict=different] strong{color:#e8c58d}
+.post-match-links{display:flex;flex-wrap:wrap;gap:5px 8px}
+.post-match-links>*{font-size:.73rem}

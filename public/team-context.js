@@ -3,9 +3,11 @@ import { fixtureHistoryHref } from "./history-report.js";
 import { fixtureContext } from "./fixture-context.js";
 import { roundSnapshot } from "./fixtures.js";
 import { sources } from "./data.js";
-import { automaticCards, outlookInterpretations, renderAutomaticFactors, renderMatchFlow, renderOutlook, weatherFacts } from "./auto-context.js";
+import { automaticCards, fixtureContextMatch, outlookInterpretations, renderAutomaticFactors, renderMatchFlow, renderOutlook, weatherFacts } from "./auto-context.js";
 import { renderComparisonGraphic } from "./team-comparison.js";
 import { renderHeadToHead, renderMatchStatistics, renderStandings } from "./match-basics.js";
+import { matchStatus } from "./live-scores.js";
+import { settledTotal, settledWinner } from "./match-settlement.js";
 import { curatedWeatherVisual, mascotArt, weatherHint, weatherPanel } from "./match-visuals.js";
 
 const aliases = {
@@ -178,23 +180,52 @@ function overseasOddsSource(source, values, match) {
     ${link(oddsComparisons[match.number])}`;
 }
 
+function marketPrice(price, hit = false) {
+  if (!price) return '<td><span class="quick-market-dash" aria-label="표시 배당 없음">—</span></td>';
+  return hit
+    ? `<td class="quick-market-hit"><strong>${price} <span class="quick-market-check" aria-hidden="true">✓</span><span class="sr-only"> 적중</span></strong></td>`
+    : `<td><strong>${price}</strong></td>`;
+}
+
+function renderSettledTotals(match, settlement) {
+  const market = match.total;
+  const scoreUnit = match.sport === "축구" ? "골" : "점";
+  return `<table class="quick-market-table quick-market-totals" aria-label="베트맨 언더오버 배당">
+    <thead><tr><th scope="col">언더오버 기준</th><th scope="col">언더</th><th scope="col">오버</th></tr></thead>
+    <tbody><tr>
+      <th scope="row">${market.line}${scoreUnit}
+        ${settlement?.points != null ? `<small class="quick-market-date">확정 합계 ${settlement.points}${scoreUnit}</small>` : ""}
+        ${market.status === "void" ? '<small class="quick-market-date">발매 무효</small>' : ""}
+      </th>
+      ${marketPrice(market.under.toFixed(2),settlement?.outcome === "under")}
+      ${marketPrice(market.over.toFixed(2),settlement?.outcome === "over")}
+    </tr></tbody>
+  </table>`;
+}
+
 export function renderQuickOdds(match, round, sourcesOpen = false) {
   if (match.voided) return "";
   const local = match.odds ?? [];
   const official = local.some(Number.isFinite);
   const overseas = capturedOverseasOdds(match,round);
-  if (!official && !overseas.length) return "";
+  const total = match.total;
+  const totalSettlement = settledTotal(match);
+  const externalFinal = !match.score && match.live?.state === "final";
+  const totalsVisible = total && (match.score || externalFinal || totalSettlement);
+  if (!official && !overseas.length && !totalsVisible) return "";
 
+  const winner = settledWinner(match);
+  const winnerIndex = ["home","draw","away"].indexOf(winner);
+  const approval = (official && winnerIndex >= 0 && Number.isFinite(local[winnerIndex])) || Boolean(totalSettlement?.outcome);
   const rows = [
-    ...(official ? [["베트맨", "프로토 일반 배당", match.odds.map(odd=>Number.isFinite(odd) ? odd.toFixed(2) : null)]] : []),
-    ...overseas.map(([name,date,values])=>[name,date,values.map(odd=>Number.isFinite(odd) && Math.abs(odd) >= 100 ? decimal(odd) : null)])
+    ...(official ? [["베트맨", "프로토 일반 배당", local.map(odd=>Number.isFinite(odd) ? odd.toFixed(2) : null), winnerIndex]] : []),
+    ...overseas.map(([name,date,values])=>[name,date,values.map(odd=>Number.isFinite(odd) && Math.abs(odd) >= 100 ? decimal(odd) : null),-1])
   ];
   const checkedAt = Date.parse(round.capturedAt);
-  const total = match.total;
   const sources = [
-    official ? `<div class="quick-market-source"><strong>베트맨</strong>
+    official || totalsVisible ? `<div class="quick-market-source"><strong>베트맨</strong>
       ${Number.isFinite(checkedAt) ? `<span class="context-basis">${quickMarketDate.format(new Date(checkedAt))} KST 경기표 확인</span>` : ""}
-      ${total ? `<span class="context-basis">기준 ${total.line} · 언더 ${total.under.toFixed(2)} · 오버 ${total.over.toFixed(2)}</span>` : ""}
+      ${total && !totalsVisible ? `<span class="context-basis">기준 ${total.line} · 언더 ${total.under.toFixed(2)} · 오버 ${total.over.toFixed(2)}</span>` : ""}
       ${link(["베트맨 · 공식 경기표",round.source])}
     </div>` : "",
     ...overseas.map(([name,,values,market,source])=>`<div class="quick-market-source">
@@ -205,13 +236,16 @@ export function renderQuickOdds(match, round, sourcesOpen = false) {
   ].join("");
   return `<section class="quick-market" aria-label="배당 비교">
     <div class="quick-market-heading"><h4>배당 비교</h4><span>소수 배당</span></div>
-    <table class="quick-market-table" aria-label="승부 배당 비교">
+    ${externalFinal ? '<p class="quick-market-result-note">외부 종료 결과 · 베트맨 일반 정산 대기</p>' : ""}
+    ${approval ? '<p class="quick-market-result-note" data-confirmed="true"><span aria-hidden="true">✓</span> 베트맨 확정 적중</p>' : ""}
+    ${rows.length ? `<table class="quick-market-table" aria-label="승부 배당 비교">
       <thead><tr><th scope="col">출처</th>${winnerLabels.map(label=>`<th scope="col">${label}</th>`).join("")}</tr></thead>
-      <tbody>${rows.map(([name,date,prices])=>`<tr>
+      <tbody>${rows.map(([name,date,prices,hit])=>`<tr>
         <th scope="row">${escape(name)}<small class="quick-market-date">${escape(date)}</small></th>
-        ${winnerLabels.map((_, i)=>`<td>${prices[i] ? `<strong>${prices[i]}</strong>` : '<span class="quick-market-dash" aria-label="표시 배당 없음">—</span>'}</td>`).join("")}
+        ${winnerLabels.map((_, i)=>marketPrice(prices[i], hit === i)).join("")}
       </tr>`).join("")}</tbody>
-    </table>
+    </table>` : ""}
+    ${totalsVisible ? renderSettledTotals(match,totalSettlement) : ""}
     <details class="quick-market-sources" data-keep-open="quick-market-sources"${sourcesOpen ? " open" : ""}>
       <summary>배당 출처·기준점</summary>
       ${overseas.length ? '<p class="context-basis">해외 배당은 기사 공개 당시 값입니다. 업체별 정산 기준은 출처에서 확인할 수 있습니다.</p>' : ""}
@@ -231,8 +265,8 @@ export function teamContextPanels(match, round, {detail, editorial, auto, standi
   const roundId = (round.year % 100)*10000 + round.round;
   const scoped = roundId === fixtureContext.roundId;
   const curated = scoped ? fixtureContext.numbers[match.number] ?? {} : {};
-  const matched = auto?.fixture;
-  if (!matched || ["number","league","home","away","startsAt"].some(key => matched[key] !== match[key])) auto = null;
+  auto = fixtureContextMatch(match,auto);
+  const completed = matchStatus(match)[0] === "done";
   const extra = {...curated, ...auto, records:[...(auto?.records ?? []), ...(curated.records ?? [])]};
   const venueKey = key(match.venue || editorial?.venue || detail?.venue);
   const venue = Object.entries(fixtureContext.venues).find(([name])=>key(name)===(venueAliases[venueKey]??venueKey))?.[1];
@@ -246,17 +280,17 @@ export function teamContextPanels(match, round, {detail, editorial, auto, standi
   const weather = detail?.weatherAssessment;
   const newsRows = [...(extra.news ?? []),...(detail?.events?.map(([date, category, title, body, ref])=>[date,title,body,sources[ref]]) ?? [])];
   const cards = [
-    (venue || extra.onSite) ? card("venue","구장 특징","◎","잔디·시설·당일 조건",renderMatchFlow(auto,match.voided)+stadium(venue,extra.onSite)+renderAutomaticFactors(auto,"venue"),opened) : "",
-    weather && !weatherFacts(auto).length ? card("weather","경기 환경","",weatherHint(curatedWeatherVisual(detail)),
+    (venue || extra.onSite) ? card("venue","구장 특징","◎","잔디·시설·당일 조건",renderMatchFlow(auto,match.voided || completed)+stadium(venue,extra.onSite)+renderAutomaticFactors(auto,"venue",completed),opened) : "",
+    weather && !weatherFacts(auto).length ? card("weather",completed ? "경기 전 환경 자료" : "경기 환경","",weatherHint(curatedWeatherVisual(detail)),
       `${weatherPanel({...curatedWeatherVisual(detail),readings:weather.readings.map(([label,value])=>({label,value}))})}
       <p class="weather-origin"><strong>${escape(weather.basis)}</strong></p>
-      <p>${escape(weather.impact)}</p>
-      <details class="weather-evidence"><summary>중계에서 볼 점 · 출처</summary>
-      <p>${escape(weather.watch)}</p><p class="context-basis">${escape(weather.basis)}</p>
+      ${completed ? "" : `<p>${escape(weather.impact)}</p>`}
+      <details class="weather-evidence"><summary>${completed ? "경기 전 발표 자료 · 출처" : "중계에서 볼 점 · 출처"}</summary>
+      ${completed ? "" : `<p>${escape(weather.watch)}</p>`}<p class="context-basis">${escape(weather.basis)}</p>
       ${sourceCredit(sources[detail.weather?.[2]])}${weather.refs.map(ref=>sourceCredit(sources[ref])).join("")}</details>`,opened) : "",
     (playerRows.length || editorial?.roster) ? card("players","주요 선수","◇","최근 활약과 출전 상태",
-      (editorial?.roster ? `<section class="context-item"><h4>출전 변수</h4><p>${escape(editorial.roster[0])}</p>${link(["NBA 부상 보고서 · 11/21 23:15 KST",editorial.roster[1]])}</section>` : "")+genericItems(playerRows,"player")+renderAutomaticFactors(auto,"players"),opened) : "",
-    newsRows.length ? card("news","주요 뉴스","≡","경기에 관련된 발표",genericItems(newsRows,"news")+renderAutomaticFactors(auto,"news"),opened) : "",
+      (editorial?.roster ? `<section class="context-item"><h4>출전 변수</h4><p>${escape(editorial.roster[0])}</p>${link(["NBA 부상 보고서 · 11/21 23:15 KST",editorial.roster[1]])}</section>` : "")+genericItems(playerRows,"player")+renderAutomaticFactors(auto,"players",completed),opened) : "",
+    newsRows.length ? card("news","주요 뉴스","≡","경기에 관련된 발표",genericItems(newsRows,"news")+renderAutomaticFactors(auto,"news",completed),opened) : "",
     (epl || extra.comparison || extra.teamStats?.length) ? card("compare","팀 비교","⇆","홈·원정 득실점",
       extra.comparison ? statedComparison(extra.comparison) : epl ? eplSlot("compare") : automaticComparison(extra.teamStats,match),opened) : "",
     (extra.recent || epl) ? card("recent","최근 5경기","↗","승·무·패와 실제 점수",
@@ -272,13 +306,13 @@ export function teamContextPanels(match, round, {detail, editorial, auto, standi
   const allCards = [...cards.filter((_,i)=>baseline.has(ids[i])),...additional,
     ...cards.filter((_,i)=>!baseline.has(ids[i])),check];
   const notes = extra.records.filter(([title])=>!extra.headToHead?.length || !/^맞대결 \d+경기 ·/.test(title));
-  const forecast = auto?.outlook ?? (match.total ? {
+  const forecast = auto?.outlook ?? (match.total && match.total.status !== "void" ? {
     kind:"market",
     headline:`베트맨 기준 ${match.total.line}${match.sport === "축구" ? "골" : "점"} · ${match.total.under === match.total.over ? "언더·오버 배당이 같습니다" : `${match.total.under < match.total.over ? "언더" : "오버"} 쪽 배당이 낮습니다`}`,
     basis:`언더 ${match.total.under.toFixed(2)} · 오버 ${match.total.over.toFixed(2)}`,
     source:["베트맨 · 경기 배당",round.source],
   } : null);
-  const pregame = ["live","final"].includes(match.live?.state);
+  const pregame = match.live?.state === "live";
   const displayForecast = forecast && pregame ? {...forecast,archived:true} : forecast;
   return `<details class="match-context" data-keep-open="context"${opened.has("context") ? " open" : ""}>
     <summary>
@@ -286,7 +320,7 @@ export function teamContextPanels(match, round, {detail, editorial, auto, standi
       <strong class="context-summary-title">상세 정보</strong>
       <span class="context-count">${allCards.length}개 항목</span><span class="context-plus" aria-hidden="true"></span>
     </summary>
-    ${renderOutlook(displayForecast, match.voided,fixtureHistoryHref(match.number,roundId),{angle:auto?.matchAngle,interpretations:outlookInterpretations(auto),notes,
+    ${completed ? "" : renderOutlook(displayForecast, match.voided,fixtureHistoryHref(match.number,roundId),{angle:auto?.matchAngle,interpretations:outlookInterpretations(auto),notes,
       extraEvidence:epl ? eplSlot("record") : "",openEvidence:opened.has("outlook-evidence")})}
     <div class="context-cards">${allCards.join("")}</div>
     ${detailSponsor}

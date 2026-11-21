@@ -1,7 +1,9 @@
 import { sourceLink as publicSource } from "./source-links.js";
 import { roundSnapshot } from "./fixtures.js";
 import { attachTeamContext, renderQuickOdds, teamContextPanels } from "./team-context.js";
-import { fetchAutomaticContext } from "./auto-context.js";
+import { fetchAutomaticContext, fixtureContextMatch } from "./auto-context.js";
+import { fixtureHistoryHref } from "./history-report.js";
+import { renderPostMatchReview } from "./post-match-review.js";
 import { defaultOverlaySize, mountMatchOverlay } from "./match-overlay.js";
 import { fixtureDateKeys, koreaDateKey, mountDateRoller } from "./date-roller.js";
 import { mascotArt } from "./match-visuals.js";
@@ -36,6 +38,7 @@ function normalizeFeed(feed) {
       number:fixture.number, startsAt:fixture.startsAt, closesAt:fixture.closesAt,
       sport:fixture.sport, league:fixture.league, home:fixture.home, away:fixture.away, venue:fixture.venue,
       score:/^\d+:\d+$/.test(fixture.result) ? fixture.result.split(":").map(Number) : null,
+      ...(Object.hasOwn(fixture,"outcome") ? {outcome:["home","draw","away"].includes(fixture.outcome) ? fixture.outcome : null} : {}),
       odds:Array.isArray(fixture.odds) ? fixture.odds.map(odd => typeof odd === "number" && odd > 1 ? odd : null) : [null,null,null],
       total:fixture.total && ["line","under","over"].every(key => typeof fixture.total[key] === "number" && Number.isFinite(fixture.total[key])) ? fixture.total : null,
       voided:fixture.status === "cancelled", saleStatus:fixture.saleStatus
@@ -98,20 +101,27 @@ function openPanels(container) {
 function quickAnalysis(match, detail, roundData, opened, auto, standings, {inOverlay = false, detailSponsor = ""} = {}) {
   const extra = roundData.editorial[match.number];
   const score = matchScore(match);
+  const finished = matchStatus(match)[0] === "done";
   const ranked = match.odds.map((odd,index) => [odd,index]).filter(([odd]) => odd != null).sort((a,b) => a[0]-b[0]);
   const marketSummary = (!score || match.live?.state === "live") && ranked.length > 1 && ranked[0][0] !== ranked[1][0]
     ? `일반 배당은 ${[match.home + " 승", "무승부", match.away + " 승"][ranked[0][1]]} 쪽이 가장 낮습니다.` : "";
-  const summary = extra?.summary ?? detail?.summary ?? marketSummary;
-  const comparison = extra?.metrics ?? [];
+  const summary = finished ? "" : extra?.summary ?? detail?.summary ?? marketSummary;
+  const comparison = finished ? [] : extra?.metrics ?? [];
   const quickOdds = renderQuickOdds(match,roundData,opened.has("quick-market-sources"));
   const venue = extra?.venue ?? detail?.venue ?? match.venue;
   const sourceLinks = [sourceLink("베트맨 경기 원본", roundData.source)];
   if (extra) sourceLinks.push(...extra.sources.map(([label, url]) => sourceLink(label, url)));
   sourceLinks.push(...teamSymbolSources(match.home,match.away).map(([label,url])=>sourceLink(label,url)));
 
-  const contextPanels = teamContextPanels(match, roundData, {detail, editorial:extra, opened, auto, standings, detailSponsor});
+  const context = fixtureContextMatch(match,auto);
+  const recap = finished ? renderPostMatchReview(match,context?.pregameOutlook ?? context?.outlook,{
+    historyHref:fixtureHistoryHref(match.number,officialRoundId(roundData)),
+    source:[`베트맨 · 승부식 ${roundData.round}회차`,roundData.source],stats:context?.matchStats,
+  }) : "";
+  const contextPanels = teamContextPanels(match, roundData, {detail, editorial:extra, opened, auto:context, standings, detailSponsor});
 
   return `<div class="fixture-analysis">
+    ${finished ? quickOdds + recap : ""}
     ${match.live?.state === "live" && score ? renderLiveAnalysis(match, match.live) : ""}
     ${liveEvidence(match.live)}
     ${inOverlay ? "" : contextPanels}
@@ -119,11 +129,11 @@ function quickAnalysis(match, detail, roundData, opened, auto, standings, {inOve
     ${comparison.length ? `<dl class="quick-comparison">${comparison.map(([label, home, away]) =>
       `<div><dt>${text(label)}</dt><dd><strong>${text(home)}</strong><span>vs</span><strong>${text(away)}</strong></dd></div>`).join("")}</dl>` : ""}
     <dl class="quick-facts">
-      ${score ? `<div><dt>${match.live?.state === "live" ? "현재 스코어" : "최종 점수"}</dt><dd>${score.join(" – ")}</dd></div>` : ""}
+      ${score && !finished ? `<div><dt>현재 스코어</dt><dd>${score.join(" – ")}</dd></div>` : ""}
       ${venue ? `<div><dt>경기장</dt><dd>${text(venue)}</dd></div>` : ""}
       ${match.closesAt ? `<div><dt>발매 마감</dt><dd>${snapshotLabel.format(new Date(match.closesAt))}</dd></div>` : ""}
     </dl>
-    ${quickOdds}
+    ${finished ? "" : quickOdds}
     ${!summary && !score && !quickOdds ? '<p class="muted">아직 확인된 배당과 팀 비교 자료가 없습니다.</p>' : ""}
     ${inOverlay ? contextPanels : ""}
     <div class="quick-actions">${detail && !inOverlay ? `<a class="quick-detail" href="?match=${text(detail.id)}">상세 브리핑</a>` : ""}
@@ -196,13 +206,28 @@ function dateSections(matches, detailsByNumber, now, roundData, expanded, packet
 }
 
 export function publishedMatchInfo(game) {
-  return { roundId:(publishedRound.year % 100)*10000 + publishedRound.round,
-    number:publishedRound.briefingNumbers[game.id] };
+  const number = publishedRound.briefingNumbers[game.id];
+  return {roundId:officialRoundId(publishedRound), number,
+    fixture:publishedRound.matches.find(match=>match.number === number), round:publishedRound};
 }
 
-export function withOfficialStatus(game) {
-  const fixture = publishedRound.matches.find(match => match.number === publishedRound.briefingNumbers[game.id]);
-  return fixture ? { ...game, status:matchStatus(fixture, Date.now())[1], result:fixture.score?.join("–") } : game;
+export async function fetchPublishedResult(game) {
+  const {roundId,number,fixture} = publishedMatchInfo(game);
+  if (!fixture || Date.parse(fixture.startsAt) > Date.now()) return null;
+  try {
+    const response = await fetch(apiUrl,{signal:AbortSignal.timeout(10_000)});
+    if (!response.ok) return null;
+    const round = normalizeFeed(await response.json());
+    if (officialRoundId(round) !== roundId) return null;
+    const match = round.matches.find(candidate=>candidate.number === number &&
+      ["home","away","league","startsAt"].every(key=>candidate[key] === fixture[key]));
+    if (!match) return null;
+    if (match.voided || match.score) return {fixture:match,round};
+    const live = withLiveScores(match,await fetchLiveRound(roundId));
+    return live.live?.state === "final" ? {fixture:live,round} : null;
+  } catch {
+    return null;
+  }
 }
 
 export function renderSchedule(main, briefings, params) {

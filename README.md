@@ -1,8 +1,10 @@
 # 매치인덱스
 
-베트맨 프로토 승부식 기준의 한국어 경기 분석 데모입니다. 공식 안내에 명시된 축구, 야구, 농구, 배구를 제공합니다. 경기, 선수 변수, 배당 및 예시 결과 확률은 가상입니다. 실시간 회차나 경기 정보를 연동하지 않습니다.
+베트맨 프로토 승부식 기준 경기 정보 보조 화면입니다. 2026년 11월 21일 한국 시간 기준의 선정 경기와 출처를 수동 검증해 담았습니다. 138회차 편성은 공개 보조 자료로 확인하고, 경기 정보는 구단·리그·언론과 대조합니다. 베트맨 실시간 발매 데이터는 연결되어 있지 않습니다.
 
-- 공식 종목 및 경기 규정: https://m.betman.co.kr/main/mainPage/gameguide/proto.do
-- 데이터 및 종목별 지표: `public/data.js`
+- 데이터: `public/data.js` (경기, 출처, 확인 일자)
+- 상세 주소: `?match=man-city-fulham`
+- 미니 주소: `?match=man-city-fulham&view=mini`
+- 미니 오버레이는 지원 브라우저의 Document Picture-in-Picture를 사용하며, 일반 미니 창으로 대체할 수 있습니다.
 - 로컬 실행: `python server.py` 후 http://localhost:8000
-- Render Python 웹 서비스: 빌드 `python -m py_compile server.py`, 시작 `python server.py`. 추가 의존성은 없습니다.
+- Render 정적 사이트 게시 폴더: `public`

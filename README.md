@@ -41,3 +41,10 @@ python scripts/import_openfootball_epl.py | psql "$DATABASE_URL" -X -v ON_ERROR_
 - `scripts/import_betman_round.py 260138`은 베트맨 공개 조회로 138회차 본경기와 일반 배당을 내려받습니다. 핸디캡 및 전반 유형은 목록에서 별도로 세지 않습니다.
 - Neon `proto_round_snapshot`의 게시본은 `db/export_proto_round.sql`로 내보내 `public/fixtures.js`를 생성합니다. 공식 조회를 사용할 수 없을 때 게시본을 먼저 표시합니다.
 - Render 정적 사이트는 `matchindex-round-api`에서 경기표를 가져옵니다. `server.py`의 `/api/round`는 공식 경기표 읽기와 공유 캐시를 제공하며, `/healthz`로 서버 기동을 확인합니다.
+
+
+### 경기 상세 정보
+
+경기 분석표에서 `상세 정보`를 열면, 확인 자료가 있는 항목의 카드를 볼 수 있습니다. 경기별 자료는 `fixture_context_snapshot`에 베트맨 회차·경기번호와 함께 저장하고 `db/export_fixture_context.sql`로 게시합니다. 해외 배당은 출처가 공개한 시점의 값입니다.
+
+EPL 최근 경기와 맞대결은 Neon의 경기 이력에서 `db/export_epl_history.sql`로 만든 자료를 카드가 열릴 때 읽습니다. 진행 중인 시즌과 과거 시즌의 범위는 카드에 표시됩니다. 경기 이력은 영국 현지 날짜를 기준으로 대상 경기 전날까지 집계합니다.

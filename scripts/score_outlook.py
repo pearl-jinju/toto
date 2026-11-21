@@ -170,7 +170,14 @@ def build_outlook(fixture, matched_event, events, factors, source):
         under_h2h = sum(total < criterion for total in h2h) if criterion else None
         basis += f" 맞대결은 {len(h2h)}경기" + (f" 중 {under_h2h}경기가 기준점 미만이었습니다." if under_h2h is not None else "를 참고했습니다.")
     if probability is not None:
-        basis += f" {criterion:g}{unit} 기준 언더 추정 {probability:.0%}."
+        favored = "언더" if probability >= .5 else "오버"
+        estimate = max(probability,1 - probability)
+        basis += f" {criterion:g}{unit} 기준 {favored} 추정 {estimate:.0%}."
+    if sport != "배구" and observed > 0:
+        home_share = (home_for + away_against) / (2 * observed)
+        home_estimate, away_estimate = midpoint * home_share, midpoint * (1 - home_share)
+        precision = 0 if sport == "농구" else 1
+        basis += f" 팀별 예상은 홈 {home_estimate:.{precision}f}{unit} · 원정 {away_estimate:.{precision}f}{unit}."
     if market_under:
         basis += f" 베트맨 기준점 {line:g}{'점' if sport == '배구' and line >= 6 else unit}."
     return {

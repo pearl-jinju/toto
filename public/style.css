@@ -52,7 +52,7 @@ button,input,.primary{font:inherit;border:1px solid var(--line);background:#1326
 
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .schedule-page{--table:#0f1c29;--row-line:#233241;--soft:#172836}
-.schedule-top{padding:20px 0 17px}
+.schedule-top{padding:20px 0 38px}
 .schedule-top h1{font-size:clamp(1.9rem,4vw,2.7rem);letter-spacing:-.05em;margin-bottom:4px}
 .schedule-label{margin-bottom:4px;color:var(--accent);font-size:.875rem;font-weight:750}
 .schedule-meta{color:var(--muted);font-size:.875rem;margin:0}
@@ -415,8 +415,9 @@ details[open] > summary .context-plus::after {transform:none}
 }
 
 .schedule-topline {
-  position:relative;isolation:isolate;display:grid;grid-template-columns:minmax(0,1fr) minmax(155px,31%);
-  align-items:center;gap:14px;overflow:hidden;padding:14px clamp(16px,3.4vw,35px);
+  --perch-width:clamp(160px,21vw,214px);
+  position:relative;isolation:isolate;display:grid;grid-template-columns:minmax(0,1fr) var(--perch-width);
+  align-items:center;gap:14px;min-height:181px;padding:14px clamp(16px,3.4vw,35px);
   border:1px solid #46516a;border-radius:17px;
   background:radial-gradient(ellipse at 72% 67%,#ad71344a,transparent 40%),
     radial-gradient(ellipse at 103% 4%,#5275b75c,transparent 53%),linear-gradient(108deg,#132331,#18273d);
@@ -426,23 +427,27 @@ details[open] > summary .context-plus::after {transform:none}
 .schedule-topline .schedule-meta {color:#c4d4e5}
 .schedule-topline .overlay-launch {margin-top:11px;background:#f3d194;border-color:#f9dfa9;color:#2f2414}
 .schedule-topline .overlay-launch:hover {background:#ffe2a9}
-.schedule-mascot {position:relative;display:grid;place-items:center;min-width:0}
-.schedule-mascot::before {content:"";position:absolute;width:92%;height:74%;border:1px solid #dce8ff52;border-radius:50%;transform:rotate(-15deg)}
-.schedule-mascot::after {content:"";position:absolute;inset:4% 1%;background:
+.schedule-mascot {
+  position:absolute;inset-inline-end:clamp(9px,3vw,37px);inset-block-start:100%;width:var(--perch-width);
+  /* The right hand and seat meet the banner edge at this point in the cutout. */
+  transform:translateY(-81.5%);pointer-events:none;z-index:2;
+}
+.schedule-mascot::before {content:"";position:absolute;inset:10% 4% auto;width:92%;height:57%;border:1px solid #dce8ff52;border-radius:50%;transform:rotate(-15deg)}
+.schedule-mascot::after {content:"";position:absolute;inset:4% 1% 24%;background:
   radial-gradient(circle at 12% 34%,#ffdc9c 0 1px,transparent 2.5px),
   radial-gradient(circle at 88% 18%,#d8e6ff 0 1px,transparent 2.5px),
   radial-gradient(circle at 96% 62%,#d8e6ff 0 1px,transparent 2.5px)}
-.schedule-mascot .mascot-art {width:clamp(130px,17vw,170px);max-height:none;z-index:1;filter:drop-shadow(0 9px 14px #08122377)}
+.schedule-mascot .mascot-art {width:100%;max-height:none;z-index:1;filter:drop-shadow(0 6px 10px #08122377)}
 .overlay-heading {min-width:0;display:flex;align-items:center;gap:5px}
 .overlay-heading strong,.overlay-heading small {display:block}
 .overlay-heading small {font-size:.72rem;color:var(--muted);line-height:1.15}
 .overlay-mascot {width:32px;height:32px;flex:none}
 @media(max-width:580px){
-  .schedule-topline {grid-template-columns:minmax(0,1fr) clamp(76px,26vw,109px);gap:6px;border-radius:13px;padding:12px}
+  .schedule-top {padding-bottom:26px}
+  .schedule-topline {--perch-width:clamp(95px,29vw,130px);gap:6px;min-height:122px;border-radius:13px;padding:12px}
+  .schedule-mascot {inset-inline-end:4px}
   .schedule-topline .schedule-label,.schedule-topline .schedule-meta {font-size:.75rem}
   .schedule-topline .overlay-launch {margin-top:8px;padding-inline:9px}
-  .schedule-mascot .mascot-art {width:100%}
-  .schedule-mascot::before {width:106%}
 }
 .overlay-launch {display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:44px;padding:0 13px;border:1px solid #54877c;border-radius:10px;background:#17352f;color:#c8f8e8;font-size:.89rem;font-weight:760;white-space:nowrap}
 .overlay-launch::before {content:"";width:17px;height:12px;border:1px solid currentColor;border-radius:3px;background:linear-gradient(currentColor,currentColor) right 2px bottom 2px/6px 4px no-repeat}

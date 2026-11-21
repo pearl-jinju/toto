@@ -214,7 +214,7 @@ export function renderSchedule(main, briefings, params) {
         <p class="schedule-meta"><span id="round-count"></span> · 한국 시간 · <span id="round-updated" role="status"></span></p>
         <button type="button" class="overlay-launch" id="overlay-launch" aria-expanded="false">${canFloat ? "오버레이 실행" : "웹 미니 보기"}</button>
       </div>
-      <div class="schedule-mascot" aria-hidden="true">${mascotArt("standing",false,{eager:true})}</div>
+      <div class="schedule-mascot" aria-hidden="true">${mascotArt("perched",false,{eager:true})}</div>
     </div>
   </section>
   <div class="schedule-controls">

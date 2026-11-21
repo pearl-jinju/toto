@@ -12,6 +12,7 @@ from urllib.request import HTTPCookieProcessor, Request, build_opener
 ORIGIN = "https://www.betman.co.kr"
 KST = timezone(timedelta(hours=9))
 STANDARD_MARKET = {"SC": "1", "BS": "2", "BK": "3", "VL": "4"}
+TOTAL_MARKET = {"SC": "78", "BS": "79", "BK": "80", "VL": "81"}
 SALE_STATE = {"1": "before", "2": "open", "3": "closed", "4": "settled"}
 
 
@@ -49,13 +50,33 @@ def kst_timestamp(value):
     return datetime.fromtimestamp(value / 1000, KST)
 
 
+def fixture_key(row):
+    return tuple(row[key] for key in ("itemCode", "leagueCode", "gameDate", "homeId", "awayId"))
+
+
 def extract_fixtures(round_id):
     source, data = read_round(round_id)
     as_of = datetime.now(KST)
     schedules = data["compSchedules"]
+    rows = [dict(zip(schedules["keys"], values, strict=True)) for values in schedules["datas"]]
+    totals = {}
+    for row in rows:
+        if row["betId"] != TOTAL_MARKET.get(row["itemCode"]) or (row["winTxt"], row["loseTxt"]) != ("언더", "오버"):
+            continue
+        line, under, over = row["winHandi"], row["winAllot"], row["loseAllot"]
+        if row["gameReject"] in (None, "0", 0) and row["winHandi"] == row["loseHandi"] and (
+            type(line) in (int, float) and line > 0 and type(under) in (int,float) and under > 1
+            and type(over) in (int,float) and over > 1
+        ):
+            key = fixture_key(row)
+            total = {"line": line, "under": under, "over": over}
+            if key in totals and totals[key] != total:
+                totals[key] = None
+            else:
+                totals[key] = total
+
     fixtures = []
-    for values in schedules["datas"]:
-        row = dict(zip(schedules["keys"], values, strict=True))
+    for row in rows:
         code = row["itemCode"]
         if code not in STANDARD_MARKET or row["betId"] != STANDARD_MARKET[code]:
             continue
@@ -85,6 +106,7 @@ def extract_fixtures(round_id):
             "status": status,
             "saleStatus": sale_status,
             "result": result,
+            "total": totals.get(fixture_key(row)),
             "odds": [odd if odd and odd > 0 else None for odd in odds] if any(odds) else None,
         }
         fixtures.append(fixture)

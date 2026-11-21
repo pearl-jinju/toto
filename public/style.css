@@ -218,3 +218,13 @@ details[open] > summary .context-plus::after {transform:none}
 .context-splits > span {color:var(--muted)}
 .context-splits > :nth-child(3n+1) {text-align:left}
 .context-splits b {font-variant-numeric:tabular-nums}
+
+.outlook-box {margin:0 11px 10px;padding:13px;border:1px solid #34605e;border-left:3px solid var(--accent);border-radius:9px;background:#132b32}
+.outlook-label {margin:0 0 3px;color:var(--accent);font-size:.82rem;font-weight:750}
+.outlook-line {margin:0;color:var(--ink);font-size:1.07rem;line-height:1.45;font-weight:800}
+.outlook-range {margin:3px 0 0;color:#dbf1ff;font-weight:690;font-variant-numeric:tabular-nums}
+.outlook-basis {margin:5px 0;color:var(--muted);font-size:.88rem;line-height:1.55}
+.outlook-basis strong {color:var(--ink)}
+.context-card[data-context-card=scoring] {--card-accent:#9ef1c9}
+.context-card[data-context-card=check] {--card-accent:#a9bdcc}
+.context-card[data-context-card=schedule] {--card-accent:#edd39b}

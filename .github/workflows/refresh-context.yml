@@ -1,0 +1,37 @@
+name: Refresh match context
+
+on:
+  schedule:
+    - cron: "7,37 * * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [".github/workflows/refresh-context.yml"]
+
+permissions: {}
+
+concurrency:
+  group: match-context-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - name: Refresh the official round and verify its stored context
+        env:
+          CONTEXT_API: https://matchindex-round-api.onrender.com
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 3 --max-time 65 "$CONTEXT_API/api/round" > /tmp/matchindex-round.json
+          round_id=$(python -c 'import json; d=json.load(open("/tmp/matchindex-round.json")); print((d["year"]%100)*10000+d["round"])')
+          for attempt in {1..20}; do
+            if curl --fail --silent --max-time 10 "$CONTEXT_API/api/context?round=$round_id" > /tmp/matchindex-context.json &&
+               python -c 'import json; d=json.load(open("/tmp/matchindex-context.json")); assert d.get("storage")=="neon" and len(d["contexts"])==d["matchCount"]; print(d["roundId"], d["matchCount"], "fixtures stored")' 2>/dev/null; then
+              exit 0
+            fi
+            sleep 12
+          done
+          echo "The current round context was not stored in Neon in time." >&2
+          exit 1

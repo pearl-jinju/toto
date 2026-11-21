@@ -48,3 +48,11 @@ python scripts/import_openfootball_epl.py | psql "$DATABASE_URL" -X -v ON_ERROR_
 경기 분석표에서 `상세 정보`를 열면, 확인 자료가 있는 항목의 카드를 볼 수 있습니다. 경기별 자료는 `fixture_context_snapshot`에 베트맨 회차·경기번호와 함께 저장하고 `db/export_fixture_context.sql`로 게시합니다. 해외 배당은 출처가 공개한 시점의 값입니다.
 
 EPL 최근 경기와 맞대결은 Neon의 경기 이력에서 `db/export_epl_history.sql`로 만든 자료를 카드가 열릴 때 읽습니다. 진행 중인 시즌과 과거 시즌의 범위는 카드에 표시됩니다. 경기 이력은 영국 현지 날짜를 기준으로 대상 경기 전날까지 집계합니다.
+
+## 새 회차의 상세 분석
+
+- Render의 경기표 API가 새 회차를 확인하면 상세 수집을 시작합니다. 운영 서버는 30분마다 갱신하며, GitHub Actions의 `Refresh match context`가 방문이 적을 때도 회차를 확인합니다. GitHub의 공개 저장소 일정은 장기 비활성 상태에서 일시 중지될 수 있습니다.
+- Neon의 `match_context.live_match_context_round`에 경기별 상세 자료와 출처, `match_context.live_external_match`에 제공처별 경기 이력을 보관합니다. 새 설치 시 `db/11_live_match_context.sql`을 적용하고 해당 스키마 전용 계정으로 `MATCHINDEX_DATABASE_URL`을 설정합니다.
+- `GET /api/context?round=260138`은 경기별 상세 카드와 자료 시각을 반환합니다. 첫 수집이 진행 중이면 202 상태를 반환합니다. 경기 목록은 상세 자료가 갱신되는 동안에도 공식 일정과 결과를 표시합니다.
+- 기록은 베트맨의 이전 회차, OpenFootball, OpenLigaDB, J리그·K리그·WKBL 공식 결과, SportsDataverse의 NBA 공개 기록에서 확인합니다. 데이터 범위는 카드에서 표시합니다. OpenFootball은 CC0, OpenLigaDB는 ODbL이며 그 제공처의 원문 링크를 표시합니다. 날씨는 MET Norway의 도심 예보(CC BY 4.0)입니다.
+- 전망은 경기 전에 확보된 같은 리그 기록을 사용합니다. 득실점과 홈·원정, 소표본 맞대결을 반영합니다. 축구의 수치 전망은 합계 득점 모형이고, 농구는 최근 점수의 퍼짐을 함께 사용합니다. 날씨는 실제 과거 관측치 비교 표본이 확보된 경우에만 추정 확률을 보정합니다. 베트맨 배당을 환산한 값은 배당 참고로 표시합니다.

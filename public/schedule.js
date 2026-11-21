@@ -1,5 +1,6 @@
 import { roundSnapshot } from "./fixtures.js";
 import { attachTeamContext, teamContextPanels } from "./team-context.js";
+import { fetchAutomaticContext } from "./auto-context.js";
 
 const publishedRound = {
   ...roundSnapshot,
@@ -27,6 +28,7 @@ function normalizeFeed(feed) {
       sport:fixture.sport, league:fixture.league, home:fixture.home, away:fixture.away, venue:fixture.venue,
       score:/^\d+:\d+$/.test(fixture.result) ? fixture.result.split(":").map(Number) : null,
       odds:Array.isArray(fixture.odds) ? fixture.odds.map(odd => typeof odd === "number" && odd > 1 ? odd : null) : [null,null,null],
+      total:fixture.total && ["line","under","over"].every(key => typeof fixture.total[key] === "number" && Number.isFinite(fixture.total[key])) ? fixture.total : null,
       voided:fixture.status === "cancelled", saleStatus:fixture.saleStatus
     };
   });
@@ -68,7 +70,7 @@ function matchStatus(match, now) {
   return ["next", "예정"];
 }
 
-function quickAnalysis(match, detail, roundData, opened) {
+function quickAnalysis(match, detail, roundData, opened, auto) {
   const extra = roundData.editorial[match.number];
   const ranked = match.odds.map((odd,index) => [odd,index]).filter(([odd]) => odd != null).sort((a,b) => a[0]-b[0]);
   const marketSummary = !match.score && ranked.length > 1 && ranked[0][0] !== ranked[1][0]
@@ -92,13 +94,13 @@ function quickAnalysis(match, detail, roundData, opened) {
         odd == null ? "" : `<span>${["홈승", "무승부", "원정승"][index]} <strong>${odd.toFixed(2)}</strong></span>`).join("")}</dd></div>` : ""}
     </dl>
     ${!summary && !match.score && !oddsAvailable ? '<p class="muted">아직 확인된 배당과 팀 비교 자료가 없습니다.</p>' : ""}
-    ${teamContextPanels(match, roundData, {detail, editorial:extra, opened})}
+    ${teamContextPanels(match, roundData, {detail, editorial:extra, opened, auto})}
     <div class="quick-actions">${detail ? `<a class="quick-detail" href="?match=${text(detail.id)}">상세 브리핑</a><a class="quick-detail" href="?match=${text(detail.id)}&amp;view=mini">미니 보기</a>` : ""}
       <details class="fixture-sources" data-keep-open="sources"${opened.has("sources") ? " open" : ""}><summary>출처</summary><div>${sourceLinks.join("")}</div></details></div>
   </div>`;
 }
 
-function matchRow(match, detail, now, roundData, expanded) {
+function matchRow(match, detail, now, roundData, expanded, contexts) {
   const opened = expanded.get(match.number);
   const [status, label] = matchStatus(match, now);
   const time = match.startsAt.slice(11, 16);
@@ -110,11 +112,11 @@ function matchRow(match, detail, now, roundData, expanded) {
       <span class="fixture-status" aria-label="경기 상태 ${label}">${label}</span>
       <span class="fixture-expand"><span>분석표</span><i aria-hidden="true"></i></span>
     </summary>
-    ${quickAnalysis(match, detail, roundData, opened ?? new Set())}
+    ${quickAnalysis(match, detail, roundData, opened ?? new Set(), contexts?.[match.number])}
   </details>`;
 }
 
-function dateSections(matches, detailsByNumber, now, roundData, expanded) {
+function dateSections(matches, detailsByNumber, now, roundData, expanded, contexts) {
   const grouped = new Map();
   for (const match of matches) {
     const date = match.startsAt.slice(0,10);
@@ -124,8 +126,13 @@ function dateSections(matches, detailsByNumber, now, roundData, expanded) {
   return Array.from(grouped, ([date, list]) => `<section class="fixture-day">
     <h3 class="fixture-day-heading"><time datetime="${date}">${dateLabel.format(new Date(date + "T12:00:00+09:00"))}</time></h3>
     <div class="fixture-column-labels" aria-hidden="true"><span>시작</span><span>종목 · 리그</span><span>홈팀 · 원정팀</span><span>상태</span><span></span></div>
-    ${list.map(match => matchRow(match, detailsByNumber[match.number], now, roundData, expanded)).join("")}
+    ${list.map(match => matchRow(match, detailsByNumber[match.number], now, roundData, expanded, contexts)).join("")}
   </section>`).join("");
+}
+
+export function publishedMatchInfo(game) {
+  return { roundId:(publishedRound.year % 100)*10000 + publishedRound.round,
+    number:publishedRound.briefingNumbers[game.id] };
 }
 
 export function withOfficialStatus(game) {
@@ -136,6 +143,9 @@ export function withOfficialStatus(game) {
 export function renderSchedule(main, briefings, params) {
   let roundData = publishedRound;
   let refreshing = false;
+  let checkingContext = false;
+  let nextContextCheck = 0;
+  let contextPacket = null;
   let dateSignature = "";
   let timeState = -1;
   const requestedNumber = params.get("fixture");
@@ -218,7 +228,7 @@ export function renderSchedule(main, briefings, params) {
       : [["다가오는 경기", upcoming, limit], ["결과 대기", pending.slice(-4), 4], ["최근 종료", completed.slice(0, 6), 6]];
     results.innerHTML = lists.filter(([, list], index) => list.length || index === 0).map(([label, list, max]) => `<section class="schedule-group">
       <div class="schedule-section-header"><h2>${label}</h2><span>${list.length}경기</span></div>
-      ${list.length ? dateSections(list.slice(0,max), detailsByNumber, now, roundData, expanded) : '<p class="schedule-empty">조건에 맞는 경기가 없습니다.</p>'}
+      ${list.length ? dateSections(list.slice(0,max), detailsByNumber, now, roundData, expanded, contextPacket?.contexts) : '<p class="schedule-empty">조건에 맞는 경기가 없습니다.</p>'}
       ${list.length > max ? '<button class="schedule-more" type="button">경기 더 보기</button>' : ""}
       ${view === "schedule" && label === "최근 종료" && completed.length > list.length ? '<button class="schedule-more" data-show-finished type="button">종료 경기 전체 보기</button>' : ""}
     </section>`).join("");
@@ -249,6 +259,25 @@ export function renderSchedule(main, briefings, params) {
     render();
     results.querySelectorAll(".fixture > summary")[nextIndex]?.focus();
   });
+  async function refreshContext() {
+    if (checkingContext || document.hidden || Date.now() < nextContextCheck) return;
+    const roundId = (roundData.year % 100)*10000 + roundData.round;
+    checkingContext = true;
+    try {
+      const packet = await fetchAutomaticContext(roundId);
+      if ((roundData.year % 100)*10000 + roundData.round !== roundId) return;
+      if (packet && packet.updatedAt !== contextPacket?.updatedAt) {
+        contextPacket = packet;
+        render(true);
+      }
+      nextContextCheck = Date.now() + (packet ? 120_000 : 20_000);
+    } catch {
+      nextContextCheck = Date.now() + 20_000;
+    } finally {
+      checkingContext = false;
+    }
+  }
+
   async function refresh() {
     if (refreshing || document.hidden) return;
     refreshing = true;
@@ -263,6 +292,10 @@ export function renderSchedule(main, briefings, params) {
       const updated = !sameRound ||
         JSON.stringify(roundData.matches) !== JSON.stringify(next.matches) || expired !== timeState;
       timeState = expired;
+      if (!sameRound) {
+        contextPacket = null;
+        nextContextCheck = 0;
+      }
       roundData = next;
       updateMetadata(response.headers.get("X-Data-Stale") === "true");
       if (updated) render(sameRound);
@@ -270,6 +303,7 @@ export function renderSchedule(main, briefings, params) {
       updateMetadata(true);
     } finally {
       refreshing = false;
+      refreshContext();
     }
   }
 

@@ -1,6 +1,7 @@
 import { snapshot, sources, games } from "./data.js";
 import { research } from "./research.js";
-import { renderSchedule, withOfficialStatus } from "./schedule.js";
+import { publishedMatchInfo, renderSchedule, withOfficialStatus } from "./schedule.js";
+import { fetchAutomaticContext, renderOutlook } from "./auto-context.js";
 
 const main = document.querySelector("#main");
 const categories = ["전체", "축구", "야구", "농구", "배구"];
@@ -136,6 +137,7 @@ function briefing(game, compact) {
     <h1>${game.home} vs ${game.away}</h1>
     <p class="muted">${game.time} KST · ${game.venue}</p>
     <p><span class="pill">${game.status}${game.result ? " · " + game.result : ""}</span></p>
+    ${game.listed ? '<div data-brief-outlook></div>' : ""}
     <p>${game.summary}</p>${source(game.source)}
   </section>
   <div class="brief-grid">
@@ -155,12 +157,30 @@ function briefing(game, compact) {
   </section>
   <p class="muted">${snapshot} 자료 · 부상과 출전 상태는 이후 공식 발표에 따라 바뀔 수 있습니다.</p>`;
 }
+function loadBriefingOutlook(container,game) {
+  const target = container.querySelector("[data-brief-outlook]");
+  const {roundId,number} = publishedMatchInfo(game);
+  if (!target || !number) return;
+  let remaining = 4;
+  async function load() {
+    if (!target.isConnected || remaining-- <= 0) return;
+    try {
+      const packet = await fetchAutomaticContext(roundId);
+      const outlook = packet?.contexts?.[number]?.outlook;
+      if (outlook) { target.innerHTML = renderOutlook(outlook); return; }
+    } catch {}
+    if (remaining) setTimeout(load,20_000);
+  }
+  load();
+}
+
 function showBriefing(game) {
   document.title = `${game.home} vs ${game.away} · 매치인덱스`;
   document.body.classList.toggle("compact", mini);
   main.innerHTML = `<nav class="actions detail-nav" aria-label="브리핑 탐색">
     <a href="./?sport=${game.sport}">경기 목록</a>
     ${mini ? `<a href="${matchUrl(game,false)}">전체 브리핑</a>` : '<button class="primary" id="overlay">미니 오버레이 열기</button>'}</nav>${briefing(game,mini)}`;
+  loadBriefingOutlook(main,game);
   document.querySelector("#overlay")?.addEventListener("click", async () => {
     const options = { width: 420, height: 640 };
     try {
@@ -176,6 +196,7 @@ function showBriefing(game) {
       content.className = "wrap";
       content.innerHTML = briefing(game,true);
       overlay.document.body.append(content);
+      loadBriefingOutlook(content,game);
     } catch {
       window.open(matchUrl(game,true), "_blank", "popup,width=420,height=640,noopener");
     }

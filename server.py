@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from functools import partial
 from http.client import HTTPException
@@ -7,9 +8,12 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Lock
 from time import monotonic
+from urllib.parse import parse_qs, urlsplit
 from urllib.request import HTTPCookieProcessor, Request, build_opener
 
 from scripts.import_betman_round import ORIGIN, extract_fixtures
+from scripts.live_context_store import NeonStore
+from scripts.live_match_context import ContextWorker, round_number
 
 
 DEFAULT_ROUND_ID = 260138
@@ -90,12 +94,14 @@ class RoundCache:
 
 
 class MatchIndexHandler(SimpleHTTPRequestHandler):
-    def __init__(self, *args, round_cache, **kwargs):
+    def __init__(self, *args, round_cache, context_worker, **kwargs):
         self.round_cache = round_cache
+        self.context_worker = context_worker
         super().__init__(*args, **kwargs)
 
     def do_GET(self):
-        path = self.path.partition("?")[0]
+        route = urlsplit(self.path)
+        path = route.path
         if path == "/healthz":
             self.send_json(200, b'{"ok":true}')
         elif path == "/api/round":
@@ -103,7 +109,19 @@ class MatchIndexHandler(SimpleHTTPRequestHandler):
             if payload is None:
                 self.send_json(503, b'{"error":"Round data temporarily unavailable"}', stale=True)
             else:
+                self.context_worker.notice_round(round_number(json.loads(payload)))
                 self.send_json(200, payload, stale=stale)
+        elif path == "/api/context":
+            requested = parse_qs(route.query).get("round", [""])[0]
+            if len(requested) != 6 or not requested.isascii() or not requested.isdigit():
+                self.send_json(400, b'{"error":"Use a six-digit round ID"}', stale=False)
+                return
+            packet = self.context_worker.cached(int(requested))
+            if packet is None:
+                self.send_json(202, b'{"pending":true}', stale=True)
+            else:
+                payload = json.dumps(packet, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+                self.send_json(200, payload, stale=packet["storage"] != "neon")
         else:
             super().do_GET()
 
@@ -128,6 +146,10 @@ if __name__ == "__main__":
     directory = Path(__file__).resolve().parent / "public"
     pinned_round = os.environ.get("BETMAN_ROUND_ID")
     round_cache = RoundCache(int(pinned_round) if pinned_round else None)
-    handler = partial(MatchIndexHandler, directory=str(directory), round_cache=round_cache)
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+    connection = os.environ.get("MATCHINDEX_DATABASE_URL")
+    context_worker = ContextWorker(round_cache, NeonStore(connection) if connection else None)
+    context_worker.start()
+    handler = partial(MatchIndexHandler, directory=str(directory), round_cache=round_cache, context_worker=context_worker)
     with ThreadingHTTPServer(("0.0.0.0", int(os.environ.get("PORT", "8000"))), handler) as server:
         server.serve_forever()

@@ -1,6 +1,7 @@
 package kr.matchindex.overlay;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.graphics.Color;
@@ -19,13 +20,15 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 public final class MainActivity extends Activity {
+    private static final String START_AFTER_SETTINGS = "start_after_settings";
+
     private TextView status;
-    private Button permissionButton;
-    private Button startButton;
+    private boolean startAfterSettings;
 
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
+        startAfterSettings = state != null && state.getBoolean(START_AFTER_SETTINGS);
 
         int padding = OverlayService.dp(this, 24);
         ScrollView scroll = new ScrollView(this);
@@ -54,16 +57,10 @@ public final class MainActivity extends Activity {
         status = label(R.string.permission_needed, 15, 0xFF77E5B0);
         append(content, status, 24);
 
-        permissionButton = new Button(this);
-        permissionButton.setText(R.string.settings);
-        permissionButton.setAllCaps(false);
-        permissionButton.setOnClickListener(view -> openOverlaySettings());
-        append(content, permissionButton, 10);
-
-        startButton = new Button(this);
+        Button startButton = new Button(this);
         startButton.setText(R.string.start_overlay);
         startButton.setAllCaps(false);
-        startButton.setOnClickListener(view -> startOverlay());
+        startButton.setOnClickListener(view -> requestOverlay());
         append(content, startButton, 8);
 
         setContentView(scroll);
@@ -74,8 +71,29 @@ public final class MainActivity extends Activity {
         super.onResume();
         boolean allowed = Settings.canDrawOverlays(this);
         status.setText(allowed ? R.string.permission_granted : R.string.permission_needed);
-        permissionButton.setVisibility(allowed ? View.GONE : View.VISIBLE);
-        startButton.setEnabled(allowed);
+        boolean requested = startAfterSettings;
+        startAfterSettings = false;
+        if (requested && allowed) startOverlay();
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle state) {
+        super.onSaveInstanceState(state);
+        state.putBoolean(START_AFTER_SETTINGS, startAfterSettings);
+    }
+
+    private void requestOverlay() {
+        if (Settings.canDrawOverlays(this)) {
+            startOverlay();
+            return;
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.permission_title)
+                .setMessage(R.string.permission_explanation)
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(R.string.open_settings, (dialog, which) -> openOverlaySettings())
+                .show();
     }
 
     private TextView label(int text, int size, int color) {
@@ -95,20 +113,24 @@ public final class MainActivity extends Activity {
     }
 
     private void openOverlaySettings() {
+        if (startAfterSettings) return;
+
         Intent settings = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION);
         if (Build.VERSION.SDK_INT < 30) {
             settings.setData(Uri.fromParts("package", getPackageName(), null));
         }
+        startAfterSettings = true;
         try {
             startActivity(settings);
-        } catch (ActivityNotFoundException error) {
+        } catch (ActivityNotFoundException | SecurityException error) {
+            startAfterSettings = false;
             Toast.makeText(this, R.string.settings_error, Toast.LENGTH_LONG).show();
         }
     }
 
     private void startOverlay() {
         if (!Settings.canDrawOverlays(this)) {
-            openOverlaySettings();
+            status.setText(R.string.permission_needed);
             return;
         }
         try {

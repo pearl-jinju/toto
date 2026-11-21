@@ -3,6 +3,7 @@ import { roundSnapshot } from "./fixtures.js";
 import { attachTeamContext, teamContextPanels } from "./team-context.js";
 import { fetchAutomaticContext } from "./auto-context.js";
 import { mountMatchOverlay } from "./match-overlay.js";
+import { mountDateRoller } from "./date-roller.js";
 
 const publishedRound = {
   ...roundSnapshot,
@@ -215,7 +216,7 @@ export function renderSchedule(main, briefings, params) {
       <label class="schedule-search"><span class="sr-only">팀, 리그, 경기번호 검색</span><span aria-hidden="true" class="search-mark"></span><input id="schedule-search" type="search" placeholder="팀 · 리그 · 경기번호 검색"></label>
       <label class="schedule-sport"><span class="sr-only">종목 선택</span><select id="schedule-sport">${sportNames.map(name => `<option ${name === sport ? "selected" : ""}>${name === "전체" ? "전체 종목" : name}</option>`).join("")}</select></label>
     </div>
-    <nav class="schedule-dates" id="schedule-dates" aria-label="경기 날짜"></nav>
+    <div class="schedule-dates" id="schedule-dates"></div>
   </div>
   <div id="schedule-results"></div>
   <details class="block secondary-panel"><summary>일정과 결과 출처</summary><p class="muted">베트맨 공개 경기표를 1분마다 확인합니다. 출전 변수와 팀 기록은 각 출처의 발표 시점을 기준으로 제공합니다.</p><div id="schedule-origin"></div></details>`;
@@ -235,6 +236,11 @@ export function renderSchedule(main, briefings, params) {
   const select = main.querySelector("#schedule-sport");
   const viewButtons = [...main.querySelectorAll("[data-view]")];
   const dateNav = main.querySelector("#schedule-dates");
+  const dateRoller = dateNav && mountDateRoller(dateNav,date=>{
+    chosenDate = date;
+    limit = pageSize;
+    render();
+  });
   const roundLabel = main.querySelector("#round-label");
   const countLabel = main.querySelector("#round-count");
   const updatedLabel = main.querySelector("#round-updated");
@@ -254,8 +260,7 @@ export function renderSchedule(main, briefings, params) {
     if (dateSignature === signature) return;
     dateSignature = signature;
     if (chosenDate && !dates.includes(chosenDate)) chosenDate = "";
-    dateNav.innerHTML = `<button type="button" data-date="">전체 날짜</button>
-      ${dates.map(date => `<button type="button" data-date="${date}">${dateLabel.format(new Date(date + "T12:00:00+09:00"))}</button>`).join("")}`;
+    dateRoller.update(dates,chosenDate);
   }
 
   function detailFor(match) {
@@ -302,7 +307,6 @@ export function renderSchedule(main, briefings, params) {
     const detailsByNumber = Object.fromEntries(briefings.filter(game => roundData.briefingNumbers[game.id]).map(game => [roundData.briefingNumbers[game.id], game]));
 
     for (const button of viewButtons) button.setAttribute("aria-pressed", String(button.dataset.view === view));
-    for (const button of dateNav.children) button.setAttribute("aria-pressed", String(button.dataset.date === chosenDate));
     const tokens = search.value.trim().toLocaleLowerCase("ko").split(/\s+/).filter(Boolean);
     const now = Date.now();
     const matching = roundData.matches.filter(match => (sport === "전체" || match.sport === sport) &&
@@ -328,13 +332,6 @@ export function renderSchedule(main, briefings, params) {
   }
 
   for (const button of viewButtons) button.addEventListener("click", () => { view = button.dataset.view; limit = pageSize; render(); });
-  dateNav?.addEventListener("click", event => {
-    const button = event.target.closest("[data-date]");
-    if (!button) return;
-    chosenDate = button.dataset.date;
-    limit = pageSize;
-    render();
-  });
   search?.addEventListener("input", () => { limit = pageSize; render(); });
   select?.addEventListener("change", () => { sport = select.selectedIndex === 0 ? "전체" : select.value; limit = pageSize; render(); });
   launcher?.addEventListener("click", async () => {
@@ -347,8 +344,9 @@ export function renderSchedule(main, briefings, params) {
     const initialMatch = number ? Number(number) : fixtureNumber;
     function closeOverlay() {
       if (!overlay) return;
-      const {window:floating,host} = overlay;
+      const {window:floating,host,panel} = overlay;
       overlay = null;
+      panel.destroy();
       floating?.close();
       host?.remove();
       launcher.setAttribute("aria-expanded","false");

@@ -1,4 +1,5 @@
 import { escapeHtml as escape } from "./source-links.js";
+import { mountDateRoller } from "./date-roller.js";
 
 const sports = ["전체","축구","야구","농구","배구"];
 
@@ -12,9 +13,12 @@ export function mountMatchOverlay(container, {close, renderMatch, mode, initialM
       </div>
     </div>
     <div class="overlay-picker">
-      <div class="overlay-filters">
-        <label><span class="sr-only">경기 검색</span><input type="search" placeholder="팀 · 리그 · 경기번호"></label>
-        <label><span class="sr-only">종목 선택</span><select>${sports.map(sport=>`<option value="${sport}">${sport === "전체" ? "전체 종목" : sport}</option>`).join("")}</select></label>
+      <div class="overlay-filter-bar">
+        <div class="overlay-filters">
+          <label><span class="sr-only">경기 검색</span><input type="search" placeholder="팀 · 리그 · 경기번호"></label>
+          <label><span class="sr-only">종목 선택</span><select>${sports.map(sport=>`<option value="${sport}">${sport === "전체" ? "전체 종목" : sport}</option>`).join("")}</select></label>
+        </div>
+        <div class="overlay-dates"></div>
       </div>
       <ul class="overlay-list" aria-label="경기 목록"></ul>
       <p class="schedule-empty overlay-empty" hidden>검색 조건에 맞는 경기가 없습니다.</p>
@@ -34,11 +38,18 @@ export function mountMatchOverlay(container, {close, renderMatch, mode, initialM
   let active = initialMatch ?? null;
   let activeRound;
   let listMarkup = null;
+  let datesSignature = "";
+  let chosenDate = "";
+  const dateRoller = mountDateRoller(panel.querySelector(".overlay-dates"),date=>{
+    chosenDate = date;
+    results();
+  });
 
   function results() {
     const query = search.value.trim().toLocaleLowerCase("ko");
     const terms = query ? query.split(/\s+/) : [];
     const visible = matches.filter(match => (sport.value === "전체" || match.sport === sport.value) &&
+      (!chosenDate || match.startsAt.startsWith(chosenDate)) &&
       terms.every(term => `${match.home} ${match.away} ${match.league} ${match.number}`.toLocaleLowerCase("ko").includes(term)));
     empty.hidden = visible.length > 0;
     const ended = match => Boolean(match.score || match.voided);
@@ -106,8 +117,16 @@ export function mountMatchOverlay(container, {close, renderMatch, mode, initialM
   });
 
   return {
+    destroy: dateRoller.destroy,
     update(next,round) {
       matches = next;
+      const dates = [...new Set(next.map(match=>match.startsAt.slice(0,10)))];
+      const signature = dates.join(",");
+      if (signature !== datesSignature) {
+        datesSignature = signature;
+        if (!dates.includes(chosenDate)) chosenDate = "";
+        dateRoller.update(dates,chosenDate);
+      }
       if (activeRound != null && activeRound !== round) {
         active = null;
         detail.replaceChildren();

@@ -54,7 +54,7 @@ $pathBefore = $env:Path
 try {
     $env:JAVA_HOME = $jdkDir
     $env:Path = (Join-Path $jdkDir 'bin') + ';' + $pathBefore
-    $link = @('link','-I',$platformJar,'--manifest',$manifest,'--min-sdk-version',"$MinimumSdk",'--target-sdk-version',"$TargetSdk",'--version-code','2','--version-name','0.1.1-test','--java',$javaSources,'-o',$unsigned)
+    $link = @('link','-I',$platformJar,'--manifest',$manifest,'--min-sdk-version',"$MinimumSdk",'--target-sdk-version',"$TargetSdk",'--version-code','3','--version-name','0.1.2-test','--java',$javaSources,'-o',$unsigned)
     if (Test-Path -LiteralPath $resources -PathType Container) {
         $resourceZip = Join-Path $jobRoot 'resources.zip'
         Run-Tool $aapt 'compile' '--dir' $resources '-o' $resourceZip

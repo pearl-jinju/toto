@@ -14,8 +14,11 @@
     <string name="notification_text">분석창이 열려 있습니다.</string>
     <string name="close_overlay">분석창 닫기</string>
     <string name="minimize_overlay">분석창 줄이기</string>
-    <string name="expand_overlay">분석창 펼치기</string>
-    <string name="drag_overlay">경기 분석 · 끌어 이동</string>
+    <string name="expand_overlay">분석창 키우기</string>
+    <string name="overlay_size_small">작은 분석창</string>
+    <string name="overlay_size_medium">보통 분석창</string>
+    <string name="overlay_size_large">큰 분석창</string>
+    <string name="drag_overlay">끌어 이동</string>
     <string name="reload">다시 불러오기</string>
     <string name="load_error">경기 분석을 불러올 수 없습니다. 연결 상태를 확인해 주세요.</string>
     <string name="source_outside">외부 출처는 매치인덱스 홈페이지에서 볼 수 있습니다.</string>

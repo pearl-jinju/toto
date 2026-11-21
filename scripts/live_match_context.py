@@ -14,6 +14,7 @@ from scripts.provider_extra import fetch_events as other_scores, historical_resu
 from scripts.provider_match_stats import get_match_stats
 from scripts.provider_standings import get_standings
 from scripts.score_outlook import build_outlook
+from scripts.match_angles import build_match_angle
 from scripts.venue_weather import enrich_fixtures
 
 
@@ -138,6 +139,7 @@ def combine_context(existing, current):
     if current["fixture"].get("status") == "cancelled":
         result.pop("outlook", None)
         result.pop("flowPreview", None)
+        result.pop("matchAngle", None)
         result.pop("matchStats", None)
     # Retain confirmed information across an upstream outage. The original fact timestamps stay attached.
     factors = {factor_key(f): f for f in existing.get("factors", [])}
@@ -300,6 +302,7 @@ class ContextWorker:
                                     ["베트맨 · 해당 회차 득점 기준점", feed["source"]], club_games)
             details = {
                 **analysis,
+                **({"matchAngle": build_match_angle(fixture, analysis, preview)} if analysis or preview else {}),
                 **({"outlook": outlook} if outlook else {}),
                 **({"flowPreview": preview["flow"]} if preview and fixture.get("status") != "cancelled" else {}),
                 **({"matchStats": match_stats} if match_stats else {}),

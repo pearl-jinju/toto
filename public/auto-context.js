@@ -210,12 +210,18 @@ export async function fetchAutomaticContext(roundId) {
   return data;
 }
 
-export function renderOutlook(outlook, cancelled = false, historyHref = "") {
+export function renderOutlook(outlook, cancelled = false, historyHref = "", {angle, notes = [], extraEvidence = "", openEvidence = false} = {}) {
   if (cancelled) return "";
   const pose = scoringPose(outlook);
-  const label = outlook?.kind === "market" ? "베트맨 배당 참고" : "득점 전망";
+  const label = outlook?.kind === "market" ? "베트맨 배당 참고" : "경기 예상";
   const headline = outlook?.headline ?? "현재 확인된 자료로는 득점 전망을 내기 어렵습니다";
-  const credits = sourceCredits([outlook?.source,...(outlook?.evidence?.sources ?? [])]);
+  const credits = sourceCredits([angle?.source,outlook?.source,...(outlook?.evidence?.sources ?? [])]);
+  const evidence = [
+    angle?.basis ? `<p class="outlook-basis"><strong>${escape(angle.label)}</strong> ${escape(angle.basis)}</p>` : "",
+    outlook?.basis ? `<p class="outlook-basis">${escape(outlook.basis)}</p>` : "",
+    outlook?.weather ? `<p class="outlook-basis"><strong>날씨 변수</strong> ${escape(outlook.weather)}</p>` : "",
+    ...notes.map(([title,body,source])=>`<p class="outlook-basis"><strong>${escape(title)}</strong> ${escape(body)} ${sourceLink(source)}</p>`)
+  ].join("");
   return `<section class="outlook-box" data-pose="${pose}">
     <div class="outlook-visual">
       ${mascotFigure(scoringWord(outlook,pose),pose)}
@@ -225,11 +231,13 @@ export function renderOutlook(outlook, cancelled = false, historyHref = "") {
         ${outlook?.range ? `<p class="outlook-range">예상 범위 ${escape(outlook.range)}</p>` : ""}
       </div>
     </div>
-    ${outlook?.basis ? `<p class="outlook-basis">${escape(outlook.basis)}</p>` : ""}
-    ${outlook?.weather ? `<p class="outlook-basis"><strong>날씨 변수</strong> ${escape(outlook.weather)}</p>` : ""}
+    ${angle?.summary ? `<p class="outlook-angle"><span>${escape(angle.label)}</span> <strong>${escape(angle.summary)}</strong></p>` : ""}
     <div class="outlook-links">
       ${historyHref ? `<a class="history-shortcut" href="${escape(historyHref)}">경기 이력 보기</a>` : ""}
-      ${credits ? `<details class="outlook-credits"><summary>자료 제공처</summary><div>${credits}</div></details>` : ""}
     </div>
+    ${evidence || extraEvidence || credits ? `<details class="outlook-evidence" data-keep-open="outlook-evidence"${openEvidence ? " open" : ""}>
+      <summary>근거 펼치기</summary>
+      <div class="context-body">${evidence}${extraEvidence}${credits ? `<div class="outlook-credits">${credits}</div>` : ""}</div>
+    </details>` : ""}
   </section>`;
 }

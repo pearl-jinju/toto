@@ -7,7 +7,6 @@ import { fetchAutomaticContext, renderOutlook, renderWeatherFacts } from "./auto
 import { curatedWeatherVisual, weatherPanel } from "./match-visuals.js";
 
 const main = document.querySelector("#main");
-const categories = ["전체", "축구", "야구", "농구", "배구"];
 const params = new URLSearchParams(location.search);
 const selected = games.find(game => game.id === params.get("match"));
 const mini = params.get("view") === "mini";
@@ -45,35 +44,13 @@ const variables = {
 
 function guide(category, all = false) {
   const names = all ? Object.keys(variables) : [category];
-  return names.map(name => `<details class="guide"><summary>${name} 변수와 징크스</summary><div>${variables[name].map(([title, body, ref]) =>
+  return names.map(name => `<details class="guide"><summary>${name} 경기 변수</summary><div>${variables[name].map(([title, body, ref]) =>
     `<h3>${title}</h3><p>${body}</p>${source(ref)}`).join("")}</div></details>`).join("");
 }
 
 function factTiles(figures) {
   return `<dl class="weather-readings">${figures.map(([label, value]) =>
     `<div><dt>${label}</dt><dd>${value}</dd></div>`).join("")}</dl>`;
-}
-
-function patternCards(sport) {
-  return research.cases.filter(study => study.sport === sport).map(study => `<article class="study-card">
-    <h3>${study.title}</h3>
-    <p class="study-answer">${study.answer}</p>
-    ${study.figures ? factTiles(study.figures) : ""}
-    <details class="weather-evidence"><summary>근거 보기</summary>
-      <p class="kicker">${study.scope}</p><p>${study.method}</p><p class="muted">${study.limit}</p>
-      ${study.links.map(sourceLink).join("")}
-    </details>
-  </article>`).join("");
-}
-
-function patternLibrary() {
-  return `<details class="block secondary-panel" id="patterns"${location.hash === "#patterns" ? " open" : ""}>
-    <summary>징크스 검증</summary>
-    ${categories.slice(1).map((name, index) => `<details class="guide" ${index === 0 ? "open" : ""}>
-      <summary>${name} · ${research.cases.filter(study => study.sport === name).length}개</summary>
-      <div class="study-list">${patternCards(name)}</div>
-    </details>`).join("")}
-  </details>`;
 }
 
 function marketBriefing(game) {
@@ -154,7 +131,6 @@ function briefing(game, compact) {
   <section class="block"><h2>최근 7일 이슈</h2><div class="timeline">${game.events.map(([date,type,title,body,ref]) =>
     `<article><p class="kicker">${date} · ${type}</p><h3>${title}</h3><p>${body}</p>${source(ref)}</article>`).join("")}</div></section>
   <section class="block"><h2>추가 분석</h2>
-    <details class="guide"><summary>${game.sport} 징크스 검증</summary><div class="study-list">${patternCards(game.sport)}</div></details>
     ${guide(game.sport)}
   </section>
   <p class="muted">${snapshot} 자료 · 부상과 출전 상태는 이후 공식 발표에 따라 바뀔 수 있습니다.</p>`;
@@ -170,7 +146,8 @@ function loadBriefingOutlook(container,game) {
       const packet = await fetchAutomaticContext(roundId);
       const context = packet?.contexts?.[number];
       if (context) {
-        if (context.outlook) target.innerHTML = renderOutlook(context.outlook,false,fixtureHistoryHref(number,roundId));
+        if (context.outlook || context.matchAngle) target.innerHTML = renderOutlook(context.outlook,false,fixtureHistoryHref(number,roundId),
+          {angle:context.matchAngle,notes:context.records ?? []});
         const weather = renderWeatherFacts(context);
         const weatherSlot = container.querySelector("[data-brief-weather]");
         if (weatherSlot && weather) weatherSlot.innerHTML = weather;
@@ -193,7 +170,4 @@ function showBriefing(game) {
 
 if (params.get("view") === "history") renderHistoryPage(main,params);
 else if (selected && params.get("view") !== "overlay") showBriefing(withOfficialStatus(selected));
-else {
-  renderSchedule(main, games, params);
-  if (!mini && params.get("view") !== "overlay") main.insertAdjacentHTML("beforeend", patternLibrary());
-}
+else renderSchedule(main, games, params);

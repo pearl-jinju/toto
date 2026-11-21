@@ -52,6 +52,24 @@ public final class OverlayService extends Service {
     private static final String CHANNEL = "match-analysis-window";
     private static final int NOTIFICATION = 12;
 
+    private enum OverlaySize {
+        SMALL(268, 210, R.string.overlay_size_small),
+        MEDIUM(314, 414, R.string.overlay_size_medium),
+        LARGE(374, 540, R.string.overlay_size_large);
+
+        final int widthDp;
+        final int heightDp;
+        final int announcement;
+
+        OverlaySize(int widthDp, int heightDp, int announcement) {
+            this.widthDp = widthDp;
+            this.heightDp = heightDp;
+            this.announcement = announcement;
+        }
+    }
+
+    private static final OverlaySize[] SIZES = OverlaySize.values();
+
     private Context windowContext;
     private WindowManager windows;
     private WindowManager.LayoutParams placement;
@@ -59,8 +77,9 @@ public final class OverlayService extends Service {
     private FrameLayout body;
     private WebView browser;
     private LinearLayout recovery;
-    private Button resize;
-    private boolean collapsed;
+    private Button shrink;
+    private Button grow;
+    private OverlaySize size = OverlaySize.MEDIUM;
     private boolean attached;
     private AppOpsManager permissions;
     private final Handler main = new Handler(Looper.getMainLooper());
@@ -84,10 +103,7 @@ public final class OverlayService extends Service {
             stopSelf();
             return START_NOT_STICKY;
         }
-        if (attached) {
-            setCollapsed(false);
-            return START_NOT_STICKY;
-        }
+        if (attached) return START_NOT_STICKY;
 
         try {
             enterForeground();
@@ -154,9 +170,14 @@ public final class OverlayService extends Service {
         handle.setOnTouchListener(new DragHandle());
         toolbar.addView(handle, new LinearLayout.LayoutParams(0, -1, 1f));
 
-        resize = toolbarControl("−", R.string.minimize_overlay);
-        resize.setOnClickListener(view -> setCollapsed(!collapsed));
-        toolbar.addView(resize, new LinearLayout.LayoutParams(dp(windowContext, 48), -1));
+        shrink = toolbarControl("−", R.string.minimize_overlay);
+        shrink.setOnClickListener(view -> stepSize(-1));
+        toolbar.addView(shrink, new LinearLayout.LayoutParams(dp(windowContext, 48), -1));
+
+        grow = toolbarControl("+", R.string.expand_overlay);
+        grow.setOnClickListener(view -> stepSize(1));
+        toolbar.addView(grow, new LinearLayout.LayoutParams(dp(windowContext, 48), -1));
+        updateSizeButtons();
 
         Button close = toolbarControl("×", R.string.close_overlay);
         close.setOnClickListener(view -> stopSelf());
@@ -199,6 +220,7 @@ public final class OverlayService extends Service {
         button.setTextSize(24);
         button.setTextColor(Color.WHITE);
         button.setContentDescription(getString(description));
+        button.setTooltipText(getString(description));
         button.setMinWidth(0);
         button.setMinimumWidth(0);
         button.setPadding(0, 0, 0, 0);
@@ -295,16 +317,26 @@ public final class OverlayService extends Service {
     private int windowFlags() {
         return WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
                 | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
-                | (collapsed ? WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE : 0);
+                | (size == OverlaySize.SMALL ? WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE : 0);
     }
 
-    private void setCollapsed(boolean shouldCollapse) {
-        if (!attached || collapsed == shouldCollapse) return;
-        collapsed = shouldCollapse;
-        resize.setText(collapsed ? "+" : "−");
-        resize.setContentDescription(getString(collapsed ? R.string.expand_overlay : R.string.minimize_overlay));
-        if (collapsed) browser.clearFocus();
+    private void stepSize(int direction) {
+        int next = size.ordinal() + direction;
+        if (!attached || next < 0 || next >= SIZES.length) return;
+        size = SIZES[next];
+        updateSizeButtons();
+        if (size == OverlaySize.SMALL) browser.clearFocus();
         updateSizeAndPosition();
+        panel.announceForAccessibility(getString(size.announcement));
+    }
+
+    private void updateSizeButtons() {
+        boolean smaller = size != OverlaySize.SMALL;
+        boolean larger = size != OverlaySize.LARGE;
+        shrink.setEnabled(smaller);
+        grow.setEnabled(larger);
+        shrink.setAlpha(smaller ? 1f : 0.45f);
+        grow.setAlpha(larger ? 1f : 0.45f);
     }
 
     private Rect safeBounds() {
@@ -326,10 +358,8 @@ public final class OverlayService extends Service {
 
     private void resizeToFit(Rect bounds) {
         int gap = dp(windowContext, 16);
-        placement.width = Math.min(dp(windowContext, collapsed ? 268 : 374),
-                Math.max(1, bounds.width() - gap));
-        placement.height = Math.min(dp(windowContext, collapsed ? 210 : 540),
-                Math.max(1, bounds.height() - gap));
+        placement.width = Math.min(dp(windowContext, size.widthDp), Math.max(1, bounds.width() - gap));
+        placement.height = Math.min(dp(windowContext, size.heightDp), Math.max(1, bounds.height() - gap));
         placement.flags = windowFlags();
     }
 

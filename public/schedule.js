@@ -2,9 +2,11 @@ import { sourceLink as publicSource } from "./source-links.js";
 import { roundSnapshot } from "./fixtures.js";
 import { attachTeamContext, teamContextPanels } from "./team-context.js";
 import { fetchAutomaticContext } from "./auto-context.js";
-import { mountMatchOverlay } from "./match-overlay.js";
+import { defaultOverlaySize, mountMatchOverlay } from "./match-overlay.js";
 import { fixtureDateKeys, koreaDateKey, mountDateRoller } from "./date-roller.js";
 import { mascotArt } from "./match-visuals.js";
+import { hideBrokenTeamSymbols, teamLabel, teamSymbolSources } from "./team-symbols.js";
+import { mountAndroidOverlayChoice } from "./android-overlay-choice.js";
 
 const publishedRound = {
   ...roundSnapshot,
@@ -93,6 +95,7 @@ function quickAnalysis(match, detail, roundData, opened, auto, standings, inOver
   const venue = extra?.venue ?? detail?.venue ?? match.venue;
   const sourceLinks = [sourceLink("베트맨 경기 원본", roundData.source)];
   if (extra) sourceLinks.push(...extra.sources.map(([label, url]) => sourceLink(label, url)));
+  sourceLinks.push(...teamSymbolSources(match.home,match.away).map(([label,url])=>sourceLink(label,url)));
 
   return `<div class="fixture-analysis">
     ${summary ? `<p class="quick-summary">${text(summary)}</p>` : ""}
@@ -130,7 +133,7 @@ function renderMiniFixture(container, match, detail, roundData, auto, standings,
   container.innerHTML = `${navigation}
     <section class="fixture-mini-head">
       <p>${text(match.league)} · ${roundData.round}회차</p>
-      <h1${inOverlay ? ' tabindex="-1"' : ""}>${text(match.home)} <span>${match.score ? match.score.join(" : ") : "vs"}</span> ${text(match.away)}</h1>
+      <h1${inOverlay ? ' tabindex="-1"' : ""}>${teamLabel(match.home)} <span class="mini-versus">${match.score ? match.score.join(" : ") : "vs"}</span> ${teamLabel(match.away)}</h1>
       <div><time datetime="${text(match.startsAt)}">${snapshotLabel.format(new Date(match.startsAt))} KST</time><span class="fixture-status" data-status="${status}">${label}</span></div>
     </section>
     ${quickAnalysis(match, detail, roundData, opened, auto, standings, inOverlay)}`;
@@ -148,7 +151,7 @@ function matchRow(match, detail, now, roundData, expanded, packet) {
     <summary class="fixture-line">
       <time datetime="${text(match.startsAt)}" class="fixture-time">${time}</time>
       <span class="fixture-league"><span class="sport-mark sport-${{축구:"football",야구:"baseball",농구:"basketball",배구:"volleyball"}[match.sport]}">${text(match.sport.slice(0,1))}</span><span>${text(match.league)}</span></span>
-      <span class="fixture-teams"><strong>${text(match.home)}</strong><span class="fixture-versus">${match.score ? match.score.join(" : ") : "vs"}</span><strong>${text(match.away)}</strong></span>
+      <span class="fixture-teams">${teamLabel(match.home)}<span class="fixture-versus">${match.score ? match.score.join(" : ") : "vs"}</span>${teamLabel(match.away)}</span>
       <span class="fixture-status" aria-label="경기 상태 ${label}">${label}</span>
       <span class="fixture-expand"><span>분석표</span><i aria-hidden="true"></i></span>
     </summary>
@@ -202,6 +205,7 @@ export function renderSchedule(main, briefings, params) {
   let sport = sportNames.includes(params.get("sport")) ? params.get("sport") : "전체";
   const picture = window.documentPictureInPicture;
   const canFloat = typeof picture?.requestWindow === "function";
+  const isAndroid = navigator.userAgentData?.platform === "Android" || /\bAndroid\b/.test(navigator.userAgent);
   main.classList.add("schedule-page");
   if (compact) document.body.classList.add("fixture-mini-body");
   if (mini) main.classList.add("fixture-mini");
@@ -209,15 +213,15 @@ export function renderSchedule(main, briefings, params) {
   main.innerHTML = compact ? "" : `<section class="schedule-top">
     <div class="schedule-topline">
       <div class="schedule-copy">
-        <p class="schedule-label" id="round-label"></p>
-        <h1>경기 일정</h1>
-        <p class="schedule-meta"><span><span id="round-count"></span> · 한국 시간</span><span id="round-updated" role="status"></span></p>
-        <button type="button" class="overlay-launch" id="overlay-launch" aria-expanded="false">${canFloat ? "오버레이 실행" : "웹 미니 보기"}</button>
+        <h1>매치인덱스</h1>
+        <p class="schedule-subtitle">경기 흐름과 주요 변수를 한눈에</p>
+        <button type="button" class="overlay-launch" id="overlay-launch" aria-expanded="false">오버레이로 보기</button>
       </div>
       <div class="schedule-mascot" aria-hidden="true">${mascotArt("perched",false,{eager:true})}</div>
     </div>
   </section>
   <div class="schedule-controls">
+    <p class="schedule-meta"><span class="schedule-label" id="round-label"></span><span><span id="round-count"></span> · 한국 시간</span><span id="round-updated" role="status"></span></p>
     <div class="schedule-dates" id="schedule-dates"></div>
     <div class="schedule-toolbar">
       <nav class="schedule-views" aria-label="경기 보기">${views.map(([id, label]) => `<button type="button" data-view="${id}">${label}</button>`).join("")}</nav>
@@ -234,7 +238,10 @@ export function renderSchedule(main, briefings, params) {
   const launcher = main.querySelector("#overlay-launch");
   const search = main.querySelector("#schedule-search");
   if (search && fixtureNumber !== null) search.value = String(fixtureNumber);
-  if (!overlayRoute) attachTeamContext(results);
+  if (!overlayRoute) {
+    attachTeamContext(results);
+    hideBrokenTeamSymbols(results);
+  }
   results.addEventListener("toggle", event => {
     const row = event.target;
     if (!row.matches?.(".fixture[open]") || row.querySelector(":scope > .fixture-analysis")) return;
@@ -285,9 +292,10 @@ export function renderSchedule(main, briefings, params) {
       { loading:waitingForOfficial });
   }
 
-  function displayOverlay(container,mode,initialMatch,close) {
+  function displayOverlay(container,mode,initialMatch,close,resize) {
     attachTeamContext(container);
-    const panel = mountMatchOverlay(container,{mode,initialMatch,close,
+    hideBrokenTeamSymbols(container);
+    const panel = mountMatchOverlay(container,{mode,initialMatch,close,resize,
       renderMatch: (content,match) => renderMiniFixture(content,match,detailFor(match),roundData,
         contextPacket?.contexts?.[match.number],contextPacket?.standingsByLeague?.[match.league],
         {inOverlay:true})});
@@ -344,7 +352,7 @@ export function renderSchedule(main, briefings, params) {
   for (const button of viewButtons) button.addEventListener("click", () => { view = button.dataset.view; limit = pageSize; render(); });
   search?.addEventListener("input", () => { limit = pageSize; render(); });
   select?.addEventListener("change", () => { sport = select.selectedIndex === 0 ? "전체" : select.value; limit = pageSize; render(); });
-  launcher?.addEventListener("click", async () => {
+  async function openOverlay() {
     if (overlay && !overlay.window?.closed) {
       overlay.window?.focus();
       overlay.panel.focus();
@@ -366,7 +374,8 @@ export function renderSchedule(main, briefings, params) {
       launcher.disabled = true;
       let floating;
       try {
-        floating = await picture.requestWindow({width:420,height:640});
+        const {width,height} = defaultOverlaySize;
+        floating = await picture.requestWindow({width,height});
         const owner = floating.document;
         owner.documentElement.lang = "ko";
         owner.title = "경기 분석 · 매치인덱스";
@@ -380,7 +389,8 @@ export function renderSchedule(main, briefings, params) {
         const host = owner.createElement("main");
         host.className = "overlay-route";
         owner.body.append(host);
-        overlay = {window:floating,panel:displayOverlay(host,"floating",initialMatch,closeOverlay)};
+        overlay = {window:floating,panel:displayOverlay(host,"floating",initialMatch,closeOverlay,
+          ({width,height})=>floating.resizeTo(width,height))};
         floating.addEventListener("pagehide",()=>{
           if (overlay?.window === floating) closeOverlay();
         },{once:true});
@@ -394,12 +404,22 @@ export function renderSchedule(main, briefings, params) {
     if (!overlay) {
       const host = document.createElement("aside");
       host.className = "overlay-dock";
+      const resizeDock = ({width,height})=>{
+        host.style.setProperty("--overlay-width",`${width}px`);
+        host.style.setProperty("--overlay-height",`${height}px`);
+      };
+      resizeDock(defaultOverlaySize);
       document.body.append(host);
-      overlay = {host,panel:displayOverlay(host,"dock",initialMatch,closeOverlay)};
+      overlay = {host,panel:displayOverlay(host,"dock",initialMatch,closeOverlay,resizeDock)};
     }
     launcher.setAttribute("aria-expanded","true");
     overlay.panel.focus();
-  });
+  }
+
+  const androidChoice = launcher && isAndroid && !canFloat
+    ? mountAndroidOverlayChoice(main,{openWeb:openOverlay}) : null;
+  launcher?.addEventListener("click",()=>androidChoice ? androidChoice.open() : openOverlay());
+  if (androidChoice && params.get("overlay") === "android") androidChoice.open();
 
   results.addEventListener("click", event => {
     const button = event.target.closest(".schedule-more");

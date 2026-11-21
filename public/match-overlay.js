@@ -1,10 +1,17 @@
 import { escapeHtml as escape } from "./source-links.js";
 import { fixtureDateKeys, koreaDateKey, mountDateRoller } from "./date-roller.js";
 import { mascotArt } from "./match-visuals.js";
+import { teamLabel } from "./team-symbols.js";
 
 const sports = ["전체","축구","야구","농구","배구"];
+const overlaySizes = [
+  {name:"작게",width:260,height:330},
+  {name:"보통",width:320,height:410},
+  {name:"크게",width:410,height:525}
+];
+export const defaultOverlaySize = overlaySizes[1];
 
-export function mountMatchOverlay(container, {close, renderMatch, mode, initialMatch}) {
+export function mountMatchOverlay(container, {close, resize, renderMatch, mode, initialMatch}) {
   container.innerHTML = `<section class="match-overlay" role="region" aria-label="경기 분석 오버레이" data-mode="${mode}">
     <div class="overlay-header">
       <div class="overlay-heading">
@@ -16,6 +23,11 @@ export function mountMatchOverlay(container, {close, renderMatch, mode, initialM
       </div>
       <div class="overlay-actions">
         <button type="button" class="overlay-back" hidden>경기 목록</button>
+        ${resize ? `<details class="overlay-size">
+          <summary aria-label="창 크기">크기</summary>
+          <div class="overlay-size-options">${overlaySizes.map((size,index)=>`<button type="button" data-overlay-size="${index}" aria-pressed="${size === defaultOverlaySize}">${size.name}</button>`).join("")}
+            <p role="status" hidden>창 가장자리를 끌어 크기를 조절할 수 있습니다.</p></div>
+        </details>` : ""}
         ${close ? '<button type="button" class="overlay-close" aria-label="오버레이 닫기">닫기</button>' : ""}
       </div>
     </div>
@@ -40,6 +52,7 @@ export function mountMatchOverlay(container, {close, renderMatch, mode, initialM
   const sport = panel.querySelector("select");
   const back = panel.querySelector(".overlay-back");
   const heading = panel.querySelector(".overlay-header strong");
+  const sizing = panel.querySelector(".overlay-size");
   const detail = panel.querySelector(".overlay-detail");
   let matches = [];
   let active = initialMatch ?? null;
@@ -67,7 +80,7 @@ export function mountMatchOverlay(container, {close, renderMatch, mode, initialM
       const time = match.startsAt.slice(11,16);
       return `<li><button type="button" data-overlay-match="${match.number}">
         <span class="overlay-match-meta">${day} ${time} · ${escape(match.league)}</span>
-        <span><strong>${escape(match.home)}</strong> <span class="overlay-score">${match.score ? match.score.join(" : ") : "vs"}</span> <strong>${escape(match.away)}</strong></span>
+        <span class="overlay-match-teams">${teamLabel(match.home)} <span class="overlay-score">${match.score ? match.score.join(" : ") : "vs"}</span> ${teamLabel(match.away)}</span>
       </button></li>`;
     }).join("");
     if (listMarkup !== markup) {
@@ -100,6 +113,20 @@ export function mountMatchOverlay(container, {close, renderMatch, mode, initialM
     else detail.querySelector("h1")?.focus();
   }
 
+  sizing?.addEventListener("click",event=>{
+    const button = event.target.closest("[data-overlay-size]");
+    if (!button) return;
+    const help = sizing.querySelector("p");
+    try {
+      resize(overlaySizes[Number(button.dataset.overlaySize)]);
+      for (const option of sizing.querySelectorAll("button")) option.setAttribute("aria-pressed",String(option === button));
+      help.hidden = true;
+      sizing.open = false;
+      sizing.querySelector("summary").focus({preventScroll:true});
+    } catch {
+      help.hidden = false;
+    }
+  });
   search.addEventListener("input",results);
   sport.addEventListener("change",results);
   back.addEventListener("click",()=>choose(null));
@@ -110,6 +137,11 @@ export function mountMatchOverlay(container, {close, renderMatch, mode, initialM
   });
   panel.addEventListener("keydown",event=>{
     if (event.key !== "Escape") return;
+    if (sizing?.open) {
+      sizing.open = false;
+      sizing.querySelector("summary").focus({preventScroll:true});
+      return;
+    }
     if (active !== null) choose(null);
     else close?.();
   });

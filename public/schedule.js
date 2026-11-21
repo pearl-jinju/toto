@@ -83,7 +83,7 @@ function openPanels(container) {
   return new Set(Array.from(container.querySelectorAll("[data-keep-open][open]"), panel => panel.dataset.keepOpen));
 }
 
-function quickAnalysis(match, detail, roundData, opened, auto) {
+function quickAnalysis(match, detail, roundData, opened, auto, standings) {
   const extra = roundData.editorial[match.number];
   const ranked = match.odds.map((odd,index) => [odd,index]).filter(([odd]) => odd != null).sort((a,b) => a[0]-b[0]);
   const marketSummary = !match.score && ranked.length > 1 && ranked[0][0] !== ranked[1][0]
@@ -107,13 +107,13 @@ function quickAnalysis(match, detail, roundData, opened, auto) {
         odd == null ? "" : `<span>${["홈승", "무승부", "원정승"][index]} <strong>${odd.toFixed(2)}</strong></span>`).join("")}</dd></div>` : ""}
     </dl>
     ${!summary && !match.score && !oddsAvailable ? '<p class="muted">아직 확인된 배당과 팀 비교 자료가 없습니다.</p>' : ""}
-    ${teamContextPanels(match, roundData, {detail, editorial:extra, opened, auto})}
+    ${teamContextPanels(match, roundData, {detail, editorial:extra, opened, auto, standings})}
     <div class="quick-actions">${detail ? `<a class="quick-detail" href="?match=${text(detail.id)}">상세 브리핑</a>` : ""}
       <details class="fixture-sources" data-keep-open="sources"${opened.has("sources") ? " open" : ""}><summary>출처</summary><div>${sourceLinks.join("")}</div></details></div>
   </div>`;
 }
 
-function renderMiniFixture(container, match, detail, roundData, auto, { floating = false, loading = false } = {}) {
+function renderMiniFixture(container, match, detail, roundData, auto, standings, { floating = false, loading = false } = {}) {
   const mode = floating ? "PiP 오버레이" : "경기 미니 보기";
   if (!match) {
     container.innerHTML = `<nav class="fixture-mini-nav"><strong>${mode}</strong><a href="./">경기 목록</a></nav>
@@ -133,14 +133,14 @@ function renderMiniFixture(container, match, detail, roundData, auto, { floating
       <h1>${text(match.home)} <span>${match.score ? match.score.join(" : ") : "vs"}</span> ${text(match.away)}</h1>
       <div><time datetime="${text(match.startsAt)}">${snapshotLabel.format(new Date(match.startsAt))} KST</time><span class="fixture-status" data-status="${status}">${label}</span></div>
     </section>
-    ${quickAnalysis(match, detail, roundData, opened, auto)}`;
+    ${quickAnalysis(match, detail, roundData, opened, auto, standings)}`;
   if (focusedPanel) {
     [...container.querySelectorAll("[data-keep-open]")].find(panel => panel.dataset.keepOpen === focusedPanel)
       ?.querySelector("summary")?.focus({ preventScroll:true });
   }
 }
 
-function matchRow(match, detail, now, roundData, expanded, contexts) {
+function matchRow(match, detail, now, roundData, expanded, packet) {
   const opened = expanded.get(match.number);
   const [status, label] = matchStatus(match, now);
   const time = match.startsAt.slice(11, 16);
@@ -152,13 +152,13 @@ function matchRow(match, detail, now, roundData, expanded, contexts) {
       <span class="fixture-status" aria-label="경기 상태 ${label}">${label}</span>
       <span class="fixture-expand"><span>분석표</span><i aria-hidden="true"></i></span>
     </summary>
-    ${quickAnalysis(match, detail, roundData, opened ?? new Set(), contexts?.[match.number])}
+    ${opened ? quickAnalysis(match, detail, roundData, opened, packet?.contexts?.[match.number], packet?.standingsByLeague?.[match.league]) : ""}
   </details>
   <a class="fixture-overlay-link" data-pip-fixture="${match.number}" href="${text(fixtureMiniHref(match.number, roundData))}" target="_blank" rel="noopener" aria-label="${text(match.home)} 대 ${text(match.away)} PiP 오버레이" title="PiP 오버레이">PiP</a>
   </div>`;
 }
 
-function dateSections(matches, detailsByNumber, now, roundData, expanded, contexts) {
+function dateSections(matches, detailsByNumber, now, roundData, expanded, packet) {
   const grouped = new Map();
   for (const match of matches) {
     const date = match.startsAt.slice(0,10);
@@ -168,7 +168,7 @@ function dateSections(matches, detailsByNumber, now, roundData, expanded, contex
   return Array.from(grouped, ([date, list]) => `<section class="fixture-day">
     <h3 class="fixture-day-heading"><time datetime="${date}">${dateLabel.format(new Date(date + "T12:00:00+09:00"))}</time></h3>
     <div class="fixture-column-labels" aria-hidden="true"><span>시작</span><span>종목 · 리그</span><span>홈팀 · 원정팀</span><span>상태</span><span></span><span class="fixture-overlay-heading">PiP 오버레이</span></div>
-    ${list.map(match => matchRow(match, detailsByNumber[match.number], now, roundData, expanded, contexts)).join("")}
+    ${list.map(match => matchRow(match, detailsByNumber[match.number], now, roundData, expanded, packet)).join("")}
   </section>`).join("");
 }
 
@@ -225,6 +225,13 @@ export function renderSchedule(main, briefings, params) {
   const search = main.querySelector("#schedule-search");
   if (search && fixtureNumber !== null) search.value = String(fixtureNumber);
   attachTeamContext(results);
+  results.addEventListener("toggle", event => {
+    const row = event.target;
+    if (!row.matches?.(".fixture[open]") || row.querySelector(":scope > .fixture-analysis")) return;
+    const match = roundData.matches.find(item => item.number === Number(row.dataset.number));
+    if (match) row.insertAdjacentHTML("beforeend", quickAnalysis(match, detailFor(match), roundData, new Set(),
+      contextPacket?.contexts?.[match.number], contextPacket?.standingsByLeague?.[match.league]));
+  }, true);
   const select = main.querySelector("#schedule-sport");
   const viewButtons = [...main.querySelectorAll("[data-view]")];
   const dateNav = main.querySelector("#schedule-dates");
@@ -259,6 +266,7 @@ export function renderSchedule(main, briefings, params) {
     const match = pinned === null || pinned === officialRoundId(roundData)
       ? roundData.matches.find(item => item.number === number) : null;
     renderMiniFixture(container, match, detailFor(match), roundData, contextPacket?.contexts?.[number],
+      contextPacket?.standingsByLeague?.[match?.league],
       { floating, loading:waitingForOfficial });
   }
 
@@ -295,7 +303,7 @@ export function renderSchedule(main, briefings, params) {
       : [["다가오는 경기", upcoming, limit], ["결과 대기", pending.slice(-4), 4], ["최근 종료", completed.slice(0, 6), 6]];
     results.innerHTML = lists.filter(([, list], index) => list.length || index === 0).map(([label, list, max]) => `<section class="schedule-group">
       <div class="schedule-section-header"><h2>${label}</h2><span>${list.length}경기</span></div>
-      ${list.length ? dateSections(list.slice(0,max), detailsByNumber, now, roundData, expanded, contextPacket?.contexts) : '<p class="schedule-empty">조건에 맞는 경기가 없습니다.</p>'}
+      ${list.length ? dateSections(list.slice(0,max), detailsByNumber, now, roundData, expanded, contextPacket) : '<p class="schedule-empty">조건에 맞는 경기가 없습니다.</p>'}
       ${list.length > max ? '<button class="schedule-more" type="button">경기 더 보기</button>' : ""}
       ${view === "schedule" && label === "최근 종료" && completed.length > list.length ? '<button class="schedule-more" data-show-finished type="button">종료 경기 전체 보기</button>' : ""}
     </section>`).join("");

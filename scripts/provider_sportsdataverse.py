@@ -138,11 +138,16 @@ def _event(row, season):
         return None
     hpoints, apoints = _points(row.get("home_score")), _points(row.get("away_score"))
     complete = row.get("status_type_completed") == "true" and hpoints and apoints and hpoints != apoints
-    half = None
+    half, periods = None, []
     if complete:
         quarters = [_quarters(row.get(key)) for key in ("home_linescores", "away_linescores")]
-        if all(len(periods) >= 4 and None not in periods[:2] for periods in quarters):
-            half = [sum(periods[:2]) for periods in quarters]
+        if all(len(scores) >= 4 and None not in scores[:2] for scores in quarters):
+            half = [sum(scores[:2]) for scores in quarters]
+        if (len(quarters[0]) == len(quarters[1]) >= 4
+                and all(None not in scores for scores in quarters)
+                and [sum(scores) for scores in quarters] == [hpoints, apoints]):
+            periods = [{"label": f"{i+1}쿼터" if i < 4 else f"연장 {i-3}", "home": h, "away": a}
+                       for i, (h, a) in enumerate(zip(*quarters))]
     venue = {
         "name": row.get("venue_full_name"),
         "city": row.get("venue_address_city"),
@@ -161,6 +166,9 @@ def _event(row, season):
         "complete": bool(complete),
         "score": [hpoints, apoints] if complete else None,
         "half": half,
+        **({"matchStats": {"state": "finished", "periods": periods, "source": [
+            "ESPN · NBA 경기 기록", f"https://www.espn.com/nba/game/_/gameId/{identifier}",
+        ]}} if periods else {}),
         "venue": venue if venue["name"] else None,
         "source": [SOURCE_NAME, _source(season)],
         "_codes": [row.get("home_abbreviation"), row.get("away_abbreviation")],
@@ -205,7 +213,9 @@ def _box_index(season, timeout):
         points, assists = _points(row.get("points")), _points(row.get("assists"))
         if not player or points is None or assists is None:
             continue
-        index.setdefault((row["game_id"], row["team_id"]), []).append((player, points, assists))
+        index.setdefault((row["game_id"], row["team_id"]), []).append(
+            (player, points, assists, row.get("starter") == "true")
+        )
     return index
 
 
@@ -285,7 +295,7 @@ def _leader_factor(event, team, team_id, previous, boxes):
     )[:5]
     stats = {}
     for row in recent:
-        for player, points, assists in boxes.get((row["id"].rsplit(":", 1)[1], team_id.rsplit(":", 1)[1]), []):
+        for player, points, assists, _ in boxes.get((row["id"].rsplit(":", 1)[1], team_id.rsplit(":", 1)[1]), []):
             count, previous_points, previous_assists = stats.get(player, (0, 0, 0))
             stats[player] = count+1, previous_points+points, previous_assists+assists
     candidates = [(name, count, pts/count, ast/count) for name, (count, pts, ast) in stats.items() if count >= 3]
@@ -302,6 +312,19 @@ def _leader_factor(event, team, team_id, previous, boxes):
         "date": recent[0]["start"],
         "source": ["SportsDataverse · NBA 선수 경기 기록", _extra_source("player", event["_season"])],
     }
+
+
+def _lineups(event, boxes):
+    game_id = event["id"].rsplit(":", 1)[1]
+    lineups = {}
+    for side in ("home", "away"):
+        team_id = event[f"{side}_id"].rsplit(":", 1)[1]
+        players = {name: {"name": player_name_ko(name), "points": points, "assists": assists}
+                   for name, points, assists, starter in boxes.get((game_id, team_id), []) if starter}
+        if len(players) != 5:
+            return None
+        lineups[side] = list(players.values())
+    return lineups
 
 
 def _with_factors(events, fixtures, timeout):
@@ -324,8 +347,16 @@ def _with_factors(events, fixtures, timeout):
         for event in targets:
             season = event["_season"]
             factors = _injury_factors(event, reports[season].result(), now)
+            box_index = boxes[season].result()
+            if event["complete"]:
+                lineups = _lineups(event, box_index)
+                if lineups:
+                    stats = event.setdefault("matchStats", {"state": "finished", "source": [
+                        "ESPN · NBA 경기 기록", f"https://www.espn.com/nba/game/_/gameId/{event['id'].rsplit(':', 1)[1]}",
+                    ]})
+                    stats["lineups"] = lineups
             for side in ("home", "away"):
-                factor = _leader_factor(event, event[side], event[f"{side}_id"], events, boxes[season].result())
+                factor = _leader_factor(event, event[side], event[f"{side}_id"], events, box_index)
                 if factor:
                     factors.append(factor)
             if factors:

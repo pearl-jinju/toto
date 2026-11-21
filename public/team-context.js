@@ -4,6 +4,7 @@ import { fixtureContext } from "./fixture-context.js";
 import { sources } from "./data.js";
 import { automaticCards, renderAutomaticFactors, renderMatchFlow, renderOutlook, weatherFacts } from "./auto-context.js";
 import { renderComparisonGraphic } from "./team-comparison.js";
+import { renderHeadToHead, renderMatchStatistics, renderStandings } from "./match-basics.js";
 import { curatedWeatherVisual, mascotArt, weatherHint, weatherPanel } from "./match-visuals.js";
 
 const aliases = {
@@ -161,7 +162,7 @@ function stadium(venue, onSite) {
     ${onSite ? `<div class="context-item"><h4>경기 당일 관측</h4>${list(onSite.facts)}${sourceCredit(onSite.source)}</div>` : ""}`;
 }
 
-export function teamContextPanels(match, round, {detail, editorial, auto, opened = new Set()} = {}) {
+export function teamContextPanels(match, round, {detail, editorial, auto, standings, opened = new Set()} = {}) {
   if (!match) return "";
   const roundId = (round.year % 100)*10000 + round.round;
   const scoped = roundId === fixtureContext.roundId;
@@ -196,12 +197,17 @@ export function teamContextPanels(match, round, {detail, editorial, auto, opened
       extra.comparison ? statedComparison(extra.comparison) : epl ? eplSlot("compare") : automaticComparison(extra.teamStats,match),opened) : "",
     (extra.recent || epl) ? card("recent","최근 5경기","↗","승·무·패와 실제 점수",
       extra.recent ? recentTeams(extra.recent, extra.recentBasis, match.sport) : eplSlot("recent"), opened) : "",
-    (extra.records.length || epl) ? card("record","맞대결·팀 패턴","↔","반복된 기록과 경기 수",
-      (epl ? eplSlot("record") : "")+(extra.records ?? []).map(([title,summary,source])=>`<section class="context-item"><h4>${escape(title)}</h4><p>${escape(summary)}</p>${link(source)}</section>`).join(""), opened) : ""
+    card("headtohead","맞대결 기록","↔","이전 경기 날짜와 점수",renderHeadToHead(auto,match),opened),
+    card("stats","경기 기록·통계","▥","구간별 점수와 양 팀 수치",renderMatchStatistics(auto,match),opened),
+    card("standings","리그 순위","≡","시즌 팀 순위와 전적",renderStandings(standings,match),opened),
+    (extra.records.length || epl) ? card("record","팀 패턴","↻","반복된 기록과 경기 수",
+      (epl ? eplSlot("record") : "")+extra.records.filter(([title])=>!extra.headToHead?.length || !/^맞대결 \d+경기 ·/.test(title)).map(([title,summary,source])=>`<section class="context-item"><h4>${escape(title)}</h4><p>${escape(summary)}</p>${link(source)}</section>`).join(""), opened) : ""
   ].filter(Boolean);
   const ids = cards.map(markup => markup.match(/data-context-card="([a-z]+)"/)?.[1]);
   const [check, ...additional] = automaticCards(match,round,auto,ids,card,opened);
-  const allCards = [...additional,...cards,check];
+  const baseline = new Set(["compare","recent","headtohead","stats","standings"]);
+  const allCards = [...cards.filter((_,i)=>baseline.has(ids[i])),...additional,
+    ...cards.filter((_,i)=>!baseline.has(ids[i])),check];
   return `<details class="match-context" data-keep-open="context"${opened.has("context") ? " open" : ""}>
     <summary><span>상세 정보</span><span class="context-count">${allCards.length}개 항목</span><span class="context-plus" aria-hidden="true"></span></summary>
     ${renderOutlook(auto?.outlook ?? (match.total ? {kind:"market",headline:`베트맨 기준 ${match.total.line}${match.sport === "축구" ? "골" : "점"} · ${match.total.under === match.total.over ? "언더·오버 배당이 같습니다" : `${match.total.under < match.total.over ? "언더" : "오버"} 쪽 배당이 낮습니다`}`,basis:`언더 ${match.total.under.toFixed(2)} · 오버 ${match.total.over.toFixed(2)}`,source:["베트맨 · 경기 배당",round.source]} : null), match.voided,fixtureHistoryHref(match.number,roundId))}

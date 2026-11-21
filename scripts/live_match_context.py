@@ -8,9 +8,11 @@ from pathlib import Path
 from threading import Event, Lock, Thread
 from time import monotonic
 
-from scripts.fixture_matching import analyze_fixture, match_fixtures
+from scripts.fixture_matching import analyze_fixture, match_fixtures, score_of
 from scripts.provider_openfootball import fetch_events as openfootball
 from scripts.provider_extra import fetch_events as other_scores, historical_results
+from scripts.provider_match_stats import get_match_stats
+from scripts.provider_standings import get_standings
 from scripts.score_outlook import build_outlook
 from scripts.venue_weather import enrich_fixtures
 
@@ -103,6 +105,24 @@ def distinct(events):
     return list({(e["provider"], e["league"], e["id"]): e for e in events if valid_event(e)}.values())
 
 
+def recorded_periods(fixture, event):
+    if not event or not event.get("complete"):
+        return {}
+    official = score_of(fixture.get("result"))
+    final = score_of(event.get("score"))
+    if final is None or (official and final != official):
+        return {}
+    if event.get("matchStats"):
+        return dict(event["matchStats"])
+    half = score_of(event.get("half"))
+    if fixture["sport"] == "축구" and half and all(h <= f for h, f in zip(half, final)):
+        return {"state": "finished", "source": event["source"], "periods": [
+            {"label": "전반", "home": half[0], "away": half[1]},
+            {"label": "후반", "home": final[0] - half[0], "away": final[1] - half[1]},
+        ]}
+    return {}
+
+
 def factor_key(factor):
     return factor.get("category"), factor.get("title")
 
@@ -113,9 +133,12 @@ def combine_context(existing, current):
     if existing.get("fixture", {}).get("startsAt") != current["fixture"]["startsAt"]:
         return current
     result = {**existing, **current}
+    if result.get("matchStats", {}).get("state") == "live" and "matchStats" not in current:
+        result.pop("matchStats")
     if current["fixture"].get("status") == "cancelled":
         result.pop("outlook", None)
         result.pop("flowPreview", None)
+        result.pop("matchStats", None)
     # Retain confirmed information across an upstream outage. The original fact timestamps stay attached.
     factors = {factor_key(f): f for f in existing.get("factors", [])}
     updated_categories = {f["category"] for f in current["factors"]}
@@ -201,16 +224,22 @@ class ContextWorker:
             except (OSError, ValueError, KeyError, TypeError) as error:
                 logger.warning("Neon 이전 스냅샷 읽기 실패 (%s)", type(error).__name__)
         old_contexts = (previous or {}).get("contexts", {})
-        with ThreadPoolExecutor(max_workers=len(self.providers) + 2) as executor:
+        with ThreadPoolExecutor(max_workers=len(self.providers) + 3) as executor:
             jobs = [executor.submit(read_provider, provider, fixtures) for provider in self.providers]
             venues = executor.submit(self.weather, fixtures, round_source=feed["source"])
             archive = executor.submit(historical_results, round_id)
+            rankings = executor.submit(get_standings, fixtures)
             responses = [job.result() for job in jobs]
             try:
                 venue_factors = venues.result()
             except (OSError, ValueError, KeyError, TypeError):
                 venue_factors = {}
             past_proto = archive.result()
+            try:
+                standings = rankings.result()
+            except (OSError, ValueError, KeyError, TypeError) as error:
+                logger.warning("리그 순위 확인 실패 (%s)", type(error).__name__)
+                standings = {}
 
         external = distinct(event for response in responses for event in response.get("events", []))
         leagues = {fixture["league"] for fixture in fixtures}
@@ -237,6 +266,11 @@ class ContextWorker:
         for event in events:
             buckets[event["league"]].append(event)
         matched = match_fixtures(fixtures, [event for event in external if event["provider"] != "betman" and not event.get("dateOnly")])
+        try:
+            recorded = get_match_stats(fixtures, matched)
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            logger.warning("경기 통계 확인 실패 (%s)", type(error).__name__)
+            recorded = {}
         checked_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
         contexts = {}
         verified = 0
@@ -248,6 +282,10 @@ class ContextWorker:
             club_games = verified_games.get(number, ())
             analysis = analyze_fixture(fixture, provider_event, buckets[fixture["league"]], club_games) or {}
             scoring = analysis.pop("scoring", None)
+            match_stats = recorded_periods(fixture, provider_event)
+            match_stats.update(recorded.get(number) or {})
+            if fixture.get("status") == "cancelled":
+                match_stats = {}
             factors = list(venue_factors.get(number, venue_factors.get(str(number), [])))
             factors.extend(previous_round_fixtures(fixtures, fixture, [f"베트맨 · {feed['round']}회차 일정", feed["source"]]))
             if scoring:
@@ -264,6 +302,7 @@ class ContextWorker:
                 **analysis,
                 **({"outlook": outlook} if outlook else {}),
                 **({"flowPreview": preview["flow"]} if preview and fixture.get("status") != "cancelled" else {}),
+                **({"matchStats": match_stats} if match_stats else {}),
                 "fixture": meta(fixture),
                 "updatedAt": checked_at,
                 "factors": factors,
@@ -293,6 +332,7 @@ class ContextWorker:
             "externalEvents": len(external),
             "leagueCoverage": {league: sum(event["provider"] != "betman" for event in buckets[league]) for league in sorted(leagues)},
             "contexts": contexts,
+            "standingsByLeague": {**(previous or {}).get("standingsByLeague", {}), **standings},
             "storage": "memory",
         }
         if self.store:

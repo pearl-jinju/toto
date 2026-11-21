@@ -3,7 +3,7 @@ from math import exp, floor, sqrt
 from statistics import mean, pstdev, NormalDist
 
 from scripts.fixture_matching import (
-    KST, completed_history, display_name, known_source, pair, score_of, team_matches, timestamp,
+    KST, completed_history, display_name, known_source, matchup_history, pair, score_of, team_matches, timestamp,
 )
 
 
@@ -33,23 +33,6 @@ def direction(probability, line, unit):
     strength = "약간 " if abs(probability - 0.5) < .1 else ""
     side = "언더" if probability > .5 else "오버"
     return f"{line:g}{unit} {side} 쪽으로 {strength}기웁니다"
-
-
-def matchup_history(events, teams, before):
-    rows = {}
-    for event in events:
-        when = timestamp(event.get("start"))
-        score = score_of(event.get("score"))
-        oriented = pair(event)
-        if (not when or when >= before - timedelta(minutes=10) or when < before - timedelta(days=730)
-                or not event["complete"] or not score or set(oriented) != teams or not known_source(event)):
-            continue
-        key = next((key for key in rows if key[1:] == oriented and abs(key[0] - when) < timedelta(days=1)), None)
-        if key is None:
-            rows[(when, *oriented)] = (score, event)
-        elif rows[key] is not None and sum(rows[key][0]) != sum(score):
-            rows[key] = None
-    return [(*key, *value) for key,value in sorted(rows.items(), reverse=True) if value is not None][:5]
 
 
 def outlook_evidence(fixture, team_keys, selected, h2h, league_count):

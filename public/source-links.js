@@ -53,7 +53,7 @@ function technicalSource(url) {
   const {hostname,pathname:path} = url;
   return (hostname === "github.com" && /^\/(openfootball\/football\.json|sportsdataverse\/sportsdataverse-data)(\/|$)/.test(path))
     || hostname === "raw.githubusercontent.com"
-    || (hostname === "api.openligadb.de" && path.startsWith("/getmatchdata/"))
+    || (hostname === "api.openligadb.de" && /^\/(getmatchdata|getbltable)\//.test(path))
     || (hostname === "api.met.no" && /\/(compact|complete)$/.test(path));
 }
 

@@ -631,6 +631,23 @@ def scoring_context(fixture, event, history, home, away, source):
     return result
 
 
+def matchup_history(events, teams, before):
+    rows = {}
+    for event in events:
+        when = timestamp(event.get("start"))
+        score = score_of(event.get("score"))
+        oriented = pair(event)
+        if (not when or when >= before - timedelta(minutes=10) or when < before - timedelta(days=730)
+                or not event.get("complete") or not score or set(oriented) != teams or not known_source(event)):
+            continue
+        key = next((key for key in rows if key[1:] == oriented and abs(key[0] - when) < timedelta(days=1)), None)
+        if key is None:
+            rows[(when, *oriented)] = (score, event)
+        elif rows[key] is not None and rows[key][0] != score:
+            rows[key] = None
+    return [(*key, *value) for key,value in sorted(rows.items(), reverse=True) if value is not None][:5]
+
+
 def analyze_fixture(fixture, event, events, verified=()):
     sources = []
     history = completed_history(fixture, event, events, sources, verified)
@@ -659,7 +676,7 @@ def analyze_fixture(fixture, event, events, verified=()):
     if not recent:
         return {}
 
-    head_to_head = [record for record in history if set(record[1:3]) == {home, away}][:5]
+    head_to_head = matchup_history(events, {home, away}, timestamp(fixture["startsAt"]))
     if head_to_head:
         subject = fixture["home"]
         games = list(team_matches(head_to_head, home, display_by_key))
@@ -696,6 +713,13 @@ def analyze_fixture(fixture, event, events, verified=()):
 
     result = {
         "recent": recent,
+        "headToHead": [
+            {"date": day.astimezone(KST).date().isoformat(),
+             "home": display_name(row_home, row["home"], display_by_key),
+             "away": display_name(row_away, row["away"], display_by_key),
+             "score": list(score), "source": known_source(row)}
+            for day, row_home, row_away, score, row in head_to_head
+        ],
         "recentBasis": f"{fixture['league']} · 킥오프 전까지 제공처에 수록된 완료 경기 · 한국 날짜",
         "records": records,
         "teamStats": team_stats,

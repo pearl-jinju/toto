@@ -1,6 +1,7 @@
-import { sourceCredit, sourceLink as link } from "./source-links.js";
+import { isSource, sourceCredit, sourceLink as link } from "./source-links.js";
 import { fixtureHistoryHref } from "./history-report.js";
 import { fixtureContext } from "./fixture-context.js";
+import { roundSnapshot } from "./fixtures.js";
 import { sources } from "./data.js";
 import { automaticCards, outlookInterpretations, renderAutomaticFactors, renderMatchFlow, renderOutlook, weatherFacts } from "./auto-context.js";
 import { renderComparisonGraphic } from "./team-comparison.js";
@@ -133,27 +134,69 @@ const oddsComparisons = {
   ]
 };
 
-function oddsSource(source, date, values, match, officialSource) {
-  if (source?.[1] !== blockedOddsArticle) return link(source);
-  const american = values.map((odd,i) => odd == null ? "" : `${["홈승","무승부","원정승"][i]} ${odd > 0 ? "+" : ""}${odd}`).filter(Boolean).join(" · ");
-  return `<details class="context-evidence odds-source-details">
-    <summary>FanDuel 출처 자료</summary>
-    <p>${escape(source[0])} · ${escape(date)}</p>
-    <p>당시 미국식 배당 ${escape(american)}</p>
-    <p class="context-basis">FanDuel 원문 접속 제한 · 아래 비교 자료의 배당은 게시 시점에 따라 다를 수 있습니다.</p>
-    ${link(oddsComparisons[match.number])}${link(["베트맨 · 공식 경기표",officialSource])}
-  </details>`;
+const quickMarketDate = new Intl.DateTimeFormat("ko-KR", {
+  timeZone:"Asia/Seoul", month:"numeric", day:"numeric", hour:"2-digit", minute:"2-digit", hourCycle:"h23"
+});
+const winnerLabels = ["홈승", "무승부", "원정승"];
+
+function capturedOverseasOdds(match, round) {
+  if (match.voided || (round.year % 100)*10000 + round.round !== fixtureContext.roundId) return [];
+  const odds = fixtureContext.numbers[match.number]?.odds;
+  if (!odds?.length) return [];
+  const original = roundSnapshot.matches.find(([number])=>number === match.number);
+  return original && original[1] === match.startsAt && original[5] === match.home && original[6] === match.away
+    ? odds.filter(([,date,values,,source])=>date && isSource(source) &&
+      values.some(value=>Number.isFinite(value) && Math.abs(value) >= 100))
+    : [];
 }
 
-function overseas(lines, match, officialSource) {
-  const local = match.odds;
-  return `${lines.map(([name, date, values, total, source]) => `<section class="context-item">
-    <h4>${escape(name)}</h4><p class="context-basis">${escape(date)} · 소수 배당</p>
-    <dl class="context-values">${values.map((odd, index) => odd == null ? "" :
-      `<div><dt>${["홈승","무승부","원정승"][index]}</dt><dd>${decimal(odd)}</dd></div>`).join("")}</dl>
-    <p>${escape(total)}</p>${oddsSource(source,date,values,match,officialSource)}
-  </section>`).join("")}
-  ${local?.some(odd => odd != null) ? `<p class="context-basis">베트맨 일반 배당 · 홈 ${local[0]?.toFixed(2) ?? "—"} · 무 ${local[1]?.toFixed(2) ?? "—"} · 원정 ${local[2]?.toFixed(2) ?? "—"}</p>` : ""}`;
+function overseasOddsSource(source, values, match) {
+  if (source[1] !== blockedOddsArticle) return link(source);
+  const american = values.map((odd,i) => odd == null ? "" : `${winnerLabels[i]} ${odd > 0 ? "+" : ""}${odd}`).filter(Boolean).join(" · ");
+  return `<span class="context-basis">FanDuel 원문 접속 제한 · 당시 미국식 배당 ${escape(american)}</span>
+    ${link(oddsComparisons[match.number])}`;
+}
+
+export function renderQuickOdds(match, round, sourcesOpen = false) {
+  if (match.voided) return "";
+  const local = match.odds ?? [];
+  const official = local.some(Number.isFinite);
+  const overseas = capturedOverseasOdds(match,round);
+  if (!official && !overseas.length) return "";
+
+  const rows = [
+    ...(official ? [["베트맨", "프로토 일반 배당", match.odds.map(odd=>Number.isFinite(odd) ? odd.toFixed(2) : null)]] : []),
+    ...overseas.map(([name,date,values])=>[name,date,values.map(odd=>Number.isFinite(odd) && Math.abs(odd) >= 100 ? decimal(odd) : null)])
+  ];
+  const checkedAt = Date.parse(round.capturedAt);
+  const total = match.total;
+  const sources = [
+    official ? `<div class="quick-market-source"><strong>베트맨</strong>
+      ${Number.isFinite(checkedAt) ? `<span class="context-basis">${quickMarketDate.format(new Date(checkedAt))} KST 경기표 확인</span>` : ""}
+      ${total ? `<span class="context-basis">기준 ${total.line} · 언더 ${total.under.toFixed(2)} · 오버 ${total.over.toFixed(2)}</span>` : ""}
+      ${link(["베트맨 · 공식 경기표",round.source])}
+    </div>` : "",
+    ...overseas.map(([name,,values,market,source])=>`<div class="quick-market-source">
+      <strong>${escape(name)}</strong>
+      ${market ? `<span class="context-basis">공개 기준 ${escape(market)}</span>` : ""}
+      ${overseasOddsSource(source,values,match)}
+    </div>`)
+  ].join("");
+  return `<section class="quick-market" aria-label="배당 비교">
+    <div class="quick-market-heading"><h4>배당 비교</h4><span>소수 배당</span></div>
+    <table class="quick-market-table" aria-label="승부 배당 비교">
+      <thead><tr><th scope="col">출처</th>${winnerLabels.map(label=>`<th scope="col">${label}</th>`).join("")}</tr></thead>
+      <tbody>${rows.map(([name,date,prices])=>`<tr>
+        <th scope="row">${escape(name)}<small class="quick-market-date">${escape(date)}</small></th>
+        ${winnerLabels.map((_, i)=>`<td>${prices[i] ? `<strong>${prices[i]}</strong>` : '<span class="quick-market-dash" aria-label="표시 배당 없음">—</span>'}</td>`).join("")}
+      </tr>`).join("")}</tbody>
+    </table>
+    <details class="quick-market-sources" data-keep-open="quick-market-sources"${sourcesOpen ? " open" : ""}>
+      <summary>배당 출처·기준점</summary>
+      ${overseas.length ? '<p class="context-basis">해외 배당은 기사 공개 당시 값입니다. 업체별 정산 기준은 출처에서 확인할 수 있습니다.</p>' : ""}
+      ${sources}
+    </details>
+  </section>`;
 }
 
 function stadium(venue, onSite) {
@@ -192,7 +235,6 @@ export function teamContextPanels(match, round, {detail, editorial, auto, standi
     (playerRows.length || editorial?.roster) ? card("players","주요 선수","◇","최근 활약과 출전 상태",
       (editorial?.roster ? `<section class="context-item"><h4>출전 변수</h4><p>${escape(editorial.roster[0])}</p>${link(["NBA 부상 보고서 · 11/21 23:15 KST",editorial.roster[1]])}</section>` : "")+genericItems(playerRows,"player")+renderAutomaticFactors(auto,"players"),opened) : "",
     newsRows.length ? card("news","주요 뉴스","≡","경기에 관련된 발표",genericItems(newsRows,"news")+renderAutomaticFactors(auto,"news"),opened) : "",
-    extra.odds ? card("odds","해외 배당","∷","해외 업체가 공개한 배당",overseas(extra.odds,match,round.source),opened) : "",
     (epl || extra.comparison || extra.teamStats?.length) ? card("compare","팀 비교","⇆","홈·원정 득실점",
       extra.comparison ? statedComparison(extra.comparison) : epl ? eplSlot("compare") : automaticComparison(extra.teamStats,match),opened) : "",
     (extra.recent || epl) ? card("recent","최근 5경기","↗","승·무·패와 실제 점수",
@@ -202,7 +244,8 @@ export function teamContextPanels(match, round, {detail, editorial, auto, standi
     card("standings","리그 순위","≡","시즌 팀 순위와 전적",renderStandings(standings,match),opened)
   ].filter(Boolean);
   const ids = cards.map(markup => markup.match(/data-context-card="([a-z]+)"/)?.[1]);
-  const [check, ...additional] = automaticCards(match,round,auto,ids,card,opened);
+  const covered = capturedOverseasOdds(match,round).length ? [...ids,"odds"] : ids;
+  const [check, ...additional] = automaticCards(match,round,auto,covered,card,opened);
   const baseline = new Set(["compare","recent","headtohead","stats","standings"]);
   const allCards = [...cards.filter((_,i)=>baseline.has(ids[i])),...additional,
     ...cards.filter((_,i)=>!baseline.has(ids[i])),check];

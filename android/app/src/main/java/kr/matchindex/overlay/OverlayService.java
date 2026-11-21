@@ -22,6 +22,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.ResultReceiver;
 import android.provider.Settings;
 import android.util.DisplayMetrics;
 import android.view.Display;
@@ -51,6 +52,8 @@ public final class OverlayService extends Service {
     private static final String CLOSE = "kr.matchindex.overlay.CLOSE";
     private static final String CHANNEL = "match-analysis-window";
     private static final int NOTIFICATION = 12;
+    static final String START_RESULT = "kr.matchindex.overlay.START_RESULT";
+    static final int STARTED = 1;
 
     private enum OverlaySize {
         SMALL(268, 210, R.string.overlay_size_small),
@@ -98,23 +101,34 @@ public final class OverlayService extends Service {
             stopSelf();
             return START_NOT_STICKY;
         }
-        if (!Settings.canDrawOverlays(this)) {
-            Toast.makeText(this, R.string.overlay_error, Toast.LENGTH_LONG).show();
-            stopSelf();
-            return START_NOT_STICKY;
-        }
-        if (attached) return START_NOT_STICKY;
-
+        ResultReceiver reply = startResult(intent);
+        boolean ready = false;
         try {
-            enterForeground();
-            createPanel();
-            permissions = getSystemService(AppOpsManager.class);
-            permissions.startWatchingMode(AppOpsManager.OPSTR_SYSTEM_ALERT_WINDOW, getPackageName(), permissionChanged);
+            if (Settings.canDrawOverlays(this)) {
+                if (!attached) {
+                    enterForeground();
+                    createPanel();
+                    permissions = getSystemService(AppOpsManager.class);
+                    permissions.startWatchingMode(AppOpsManager.OPSTR_SYSTEM_ALERT_WINDOW, getPackageName(), permissionChanged);
+                }
+                ready = attached;
+            }
         } catch (WindowManager.BadTokenException | IllegalStateException | SecurityException error) {
-            Toast.makeText(this, R.string.overlay_error, Toast.LENGTH_LONG).show();
+            // Keep the Activity visible if the system rejected the overlay.
+        }
+        if (reply != null) reply.send(ready ? STARTED : 0, null);
+        if (!ready) {
+            if (reply == null) Toast.makeText(this, R.string.overlay_error, Toast.LENGTH_LONG).show();
             stopSelf();
         }
         return START_NOT_STICKY;
+    }
+
+    @SuppressWarnings("deprecation")
+    private ResultReceiver startResult(Intent intent) {
+        if (intent == null) return null;
+        if (Build.VERSION.SDK_INT >= 33) return intent.getParcelableExtra(START_RESULT, ResultReceiver.class);
+        return intent.getParcelableExtra(START_RESULT);
     }
 
     private void enterForeground() {

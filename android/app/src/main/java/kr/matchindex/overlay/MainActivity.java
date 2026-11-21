@@ -9,6 +9,10 @@ import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.Parcel;
+import android.os.ResultReceiver;
 import android.provider.Settings;
 import android.view.Gravity;
 import android.view.View;
@@ -20,7 +24,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 public final class MainActivity extends Activity {
-    private static final String START_URI = "matchindex://overlay/start";
+    private static final long START_TIMEOUT_MS = 8000L;
     private static final String START_AFTER_SETTINGS = "start_after_settings";
     private static final String START_WHEN_FOCUSED = "start_when_focused";
     private static final String RETURN_TO_CALLER = "return_to_caller";
@@ -31,6 +35,9 @@ public final class MainActivity extends Activity {
     private boolean startWhenFocused;
     private boolean returnToCaller;
     private boolean resumed;
+    private ResultReceiver pendingStart;
+    private final Handler main = new Handler(Looper.getMainLooper());
+    private final Runnable startTimeout = () -> completeOverlayStart(false);
 
     @Override
     protected void onCreate(Bundle state) {
@@ -84,7 +91,7 @@ public final class MainActivity extends Activity {
         super.onResume();
         resumed = true;
         boolean allowed = Settings.canDrawOverlays(this);
-        status.setText(allowed ? R.string.permission_granted : R.string.permission_needed);
+        if (pendingStart == null) status.setText(allowed ? R.string.permission_granted : R.string.permission_needed);
         boolean requested = startAfterSettings;
         startAfterSettings = false;
         if (requested && allowed) startWhenFocused = true;
@@ -112,8 +119,11 @@ public final class MainActivity extends Activity {
     }
 
     private void queueBrowserLaunch(Intent intent) {
-        if (intent == null || !Intent.ACTION_VIEW.equals(intent.getAction())
-                || !START_URI.equals(intent.getDataString())) return;
+        if (intent == null || !Intent.ACTION_VIEW.equals(intent.getAction())) return;
+        Uri uri = intent.getData();
+        if (uri == null || !"matchindex".equals(uri.getScheme())
+                || (!"start-overlay".equals(uri.getAuthority()) && !"overlay".equals(uri.getAuthority()))
+                || (!"/start".equals(uri.getPath()) && !"/start/".equals(uri.getPath()))) return;
         startWhenFocused = true;
         returnToCaller = true;
     }
@@ -128,7 +138,7 @@ public final class MainActivity extends Activity {
     protected void onSaveInstanceState(Bundle state) {
         super.onSaveInstanceState(state);
         state.putBoolean(START_AFTER_SETTINGS, startAfterSettings);
-        state.putBoolean(START_WHEN_FOCUSED, startWhenFocused);
+        state.putBoolean(START_WHEN_FOCUSED, startWhenFocused || pendingStart != null);
         state.putBoolean(RETURN_TO_CALLER, returnToCaller);
     }
 
@@ -184,15 +194,54 @@ public final class MainActivity extends Activity {
             status.setText(R.string.permission_needed);
             return;
         }
-        try {
-            startForegroundService(new Intent(this, OverlayService.class));
-            if (returnToCaller) {
-                finish();
-            } else {
-                moveTaskToBack(true);
+        if (pendingStart != null) return;
+        status.setText(R.string.overlay_starting);
+        pendingStart = new ResultReceiver(main) {
+            @Override
+            protected void onReceiveResult(int resultCode, Bundle data) {
+                if (pendingStart == this && !isDestroyed() && !isFinishing()) {
+                    completeOverlayStart(resultCode == OverlayService.STARTED);
+                }
             }
+        };
+        Intent service = new Intent(this, OverlayService.class)
+                .putExtra(OverlayService.START_RESULT, parcelableReceiver(pendingStart));
+        try {
+            startForegroundService(service);
+            main.postDelayed(startTimeout, START_TIMEOUT_MS);
         } catch (IllegalStateException | SecurityException error) {
-            Toast.makeText(this, R.string.overlay_error, Toast.LENGTH_LONG).show();
+            completeOverlayStart(false);
         }
+    }
+
+    private ResultReceiver parcelableReceiver(ResultReceiver receiver) {
+        // Parcel the framework type rather than the anonymous Activity subclass.
+        Parcel data = Parcel.obtain();
+        try {
+            receiver.writeToParcel(data, 0);
+            data.setDataPosition(0);
+            return ResultReceiver.CREATOR.createFromParcel(data);
+        } finally {
+            data.recycle();
+        }
+    }
+
+    private void completeOverlayStart(boolean visible) {
+        pendingStart = null;
+        main.removeCallbacks(startTimeout);
+        if (!visible) {
+            status.setText(R.string.overlay_error);
+            return;
+        }
+        status.setText(R.string.permission_granted);
+        if (returnToCaller) finish();
+        else moveTaskToBack(true);
+    }
+
+    @Override
+    protected void onDestroy() {
+        pendingStart = null;
+        main.removeCallbacks(startTimeout);
+        super.onDestroy();
     }
 }

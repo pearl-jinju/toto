@@ -1,6 +1,6 @@
 import { sourceLink as publicSource } from "./source-links.js";
 import { roundSnapshot } from "./fixtures.js";
-import { attachTeamContext, teamContextPanels } from "./team-context.js";
+import { attachTeamContext, renderQuickOdds, teamContextPanels } from "./team-context.js";
 import { fetchAutomaticContext } from "./auto-context.js";
 import { defaultOverlaySize, mountMatchOverlay } from "./match-overlay.js";
 import { fixtureDateKeys, koreaDateKey, mountDateRoller } from "./date-roller.js";
@@ -92,7 +92,7 @@ function quickAnalysis(match, detail, roundData, opened, auto, standings, {inOve
     ? `일반 배당은 ${[match.home + " 승", "무승부", match.away + " 승"][ranked[0][1]]} 쪽이 가장 낮습니다.` : "";
   const summary = extra?.summary ?? detail?.summary ?? marketSummary;
   const comparison = extra?.metrics ?? [];
-  const oddsAvailable = match.odds.some(odd => odd != null);
+  const quickOdds = renderQuickOdds(match,roundData,opened.has("quick-market-sources"));
   const venue = extra?.venue ?? detail?.venue ?? match.venue;
   const sourceLinks = [sourceLink("베트맨 경기 원본", roundData.source)];
   if (extra) sourceLinks.push(...extra.sources.map(([label, url]) => sourceLink(label, url)));
@@ -106,10 +106,9 @@ function quickAnalysis(match, detail, roundData, opened, auto, standings, {inOve
       ${match.score ? `<div><dt>최종 점수</dt><dd>${match.score.join(" – ")}</dd></div>` : ""}
       ${venue ? `<div><dt>경기장</dt><dd>${text(venue)}</dd></div>` : ""}
       ${match.closesAt ? `<div><dt>발매 마감</dt><dd>${snapshotLabel.format(new Date(match.closesAt))}</dd></div>` : ""}
-      ${oddsAvailable ? `<div><dt>프로토 일반 배당</dt><dd class="quick-odds">${match.odds.map((odd, index) =>
-        odd == null ? "" : `<span>${["홈승", "무승부", "원정승"][index]} <strong>${odd.toFixed(2)}</strong></span>`).join("")}</dd></div>` : ""}
     </dl>
-    ${!summary && !match.score && !oddsAvailable ? '<p class="muted">아직 확인된 배당과 팀 비교 자료가 없습니다.</p>' : ""}
+    ${quickOdds}
+    ${!summary && !match.score && !quickOdds ? '<p class="muted">아직 확인된 배당과 팀 비교 자료가 없습니다.</p>' : ""}
     ${teamContextPanels(match, roundData, {detail, editorial:extra, opened, auto, standings, detailSponsor})}
     <div class="quick-actions">${detail && !inOverlay ? `<a class="quick-detail" href="?match=${text(detail.id)}">상세 브리핑</a>` : ""}
       <details class="fixture-sources" data-keep-open="sources"${opened.has("sources") ? " open" : ""}><summary>출처</summary><div>${sourceLinks.join("")}</div></details></div>
@@ -391,7 +390,7 @@ export function renderSchedule(main, briefings, params) {
       launcher.setAttribute("aria-expanded","false");
       launcher.focus({preventScroll:true});
     }
-    if (canFloat) {
+    if (canFloat && !launchesAndroid) {
       launcher.disabled = true;
       let floating;
       try {

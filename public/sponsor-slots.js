@@ -14,12 +14,13 @@ export function sponsorSlot(placement, preview) {
   const creative = creatives[placement];
   const ready = creative?.name && isSource([creative.name,creative.url]) &&
     /^assets\/sponsors\/[a-z0-9_-]+\.(avif|jpe?g|png|webp)$/i.test(creative.image);
-  if (!preview && !ready) return "";
+  const disclosure = preview ? "광고 위치 미리보기" : ready ? "광고" : "광고 게재 공간";
 
-  return `<aside class="sponsor-slot sponsor-${placement}" data-sponsor-placement="${placement}" aria-label="${preview ? "광고 위치 미리보기" : "광고"}">
-    <span class="sponsor-disclosure">${preview ? "광고 위치 미리보기" : "광고"}</span>
+  return `<aside class="sponsor-slot sponsor-${placement}" data-sponsor-placement="${placement}" aria-label="${disclosure}">
+    <span class="sponsor-disclosure">${disclosure}</span>
     ${preview
       ? `<div class="sponsor-preview"><strong>${label}</strong><span>${width} × ${height}</span></div>`
+      : !ready ? '<div class="sponsor-placeholder" aria-hidden="true"></div>'
       : `<a class="sponsor-creative" href="${escapeHtml(creative.url)}" target="_blank" rel="sponsored noopener noreferrer">
           <img src="${escapeHtml(creative.image)}" alt="${escapeHtml(creative.name)}" width="${width}" height="${height}" loading="lazy" decoding="async">
         </a>`}

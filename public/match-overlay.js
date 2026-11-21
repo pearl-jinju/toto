@@ -5,7 +5,7 @@ const sports = ["전체","축구","야구","농구","배구"];
 export function mountMatchOverlay(container, {close, renderMatch, mode, initialMatch}) {
   container.innerHTML = `<section class="match-overlay" role="region" aria-label="경기 분석 오버레이" data-mode="${mode}">
     <div class="overlay-header">
-      <strong>경기 분석</strong>
+      <strong tabindex="-1">경기 분석</strong>
       <div class="overlay-actions">
         <button type="button" class="overlay-back" hidden>경기 목록</button>
         ${close ? '<button type="button" class="overlay-close" aria-label="오버레이 닫기">닫기</button>' : ""}
@@ -28,6 +28,7 @@ export function mountMatchOverlay(container, {close, renderMatch, mode, initialM
   const search = panel.querySelector("input");
   const sport = panel.querySelector("select");
   const back = panel.querySelector(".overlay-back");
+  const heading = panel.querySelector(".overlay-header strong");
   const detail = panel.querySelector(".overlay-detail");
   let matches = [];
   let active = initialMatch ?? null;
@@ -72,11 +73,12 @@ export function mountMatchOverlay(container, {close, renderMatch, mode, initialM
 
   function choose(number) {
     if (active === number) return;
+    const previous = active;
     active = number;
     detail.replaceChildren();
     detail.scrollTop = 0;
     render();
-    if (number === null) search.focus();
+    if (number === null) (list.querySelector(`[data-overlay-match="${previous}"]`) ?? heading).focus();
     else detail.querySelector("h1")?.focus();
   }
 
@@ -114,7 +116,7 @@ export function mountMatchOverlay(container, {close, renderMatch, mode, initialM
       render();
     },
     focus() {
-      (active === null ? search : back).focus({preventScroll:true});
+      (active === null ? heading : back).focus({preventScroll:true});
     }
   };
 }

@@ -1,6 +1,6 @@
 # 매치인덱스
 
-베트맨 프로토 승부식 기준 경기 정보 보조 화면입니다. 2026년 11월 21일 한국 시간 기준의 선정 경기와 출처를 수동 검증해 담았습니다. 138회차 편성은 공개 보조 자료로 확인하고, 경기 정보는 구단·리그·언론과 대조합니다. 베트맨 실시간 발매 데이터는 연결되어 있지 않습니다.
+베트맨 프로토 승부식의 공개 경기표를 시간순으로 보여주는 경기 정보 보조 화면입니다. 경기표는 Render의 공개 읽기 API를 통해 1분 간격으로 확인하고, 구단·리그 기사에서 정리한 선수와 팀의 상세 브리핑은 확인 시각을 기준으로 게시합니다.
 
 - 데이터: `public/data.js` (경기, 출처, 확인 일자)
 - 상세 주소: `?match=man-city-fulham`
@@ -35,3 +35,9 @@ EPL 조건부 집계는 [OpenFootball의 공개 도메인 2025/26 EPL JSON](http
 psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f db/10_historical_football.sql
 python scripts/import_openfootball_epl.py | psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1
 ```
+
+## 경기표 자동 갱신
+
+- `scripts/import_betman_round.py 260138`은 베트맨 공개 조회로 138회차 본경기와 일반 배당을 내려받습니다. 핸디캡 및 전반 유형은 목록에서 별도로 세지 않습니다.
+- Neon `proto_round_snapshot`의 게시본은 `db/export_proto_round.sql`로 내보내 `public/fixtures.js`를 생성합니다. 공식 조회를 사용할 수 없을 때 게시본을 먼저 표시합니다.
+- Render 정적 사이트는 `matchindex-round-api`에서 경기표를 가져옵니다. `server.py`의 `/api/round`는 공식 경기표 읽기와 공유 캐시를 제공하며, `/healthz`로 서버 기동을 확인합니다.

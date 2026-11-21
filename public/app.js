@@ -1,12 +1,12 @@
 import { snapshot, sources, games } from "./data.js";
 import { research } from "./research.js";
+import { renderSchedule, withOfficialStatus } from "./schedule.js";
 
 const main = document.querySelector("#main");
 const categories = ["전체", "축구", "야구", "농구", "배구"];
 const params = new URLSearchParams(location.search);
 const selected = games.find(game => game.id === params.get("match"));
 const mini = params.get("view") === "mini";
-let sport = categories.includes(params.get("sport")) ? params.get("sport") : "전체";
 
 // Markup below interpolates editorial data shipped with this release.
 // User-entered search text is only used for comparison.
@@ -66,14 +66,13 @@ function patternCards(sport) {
 }
 
 function patternLibrary() {
-  return `<section class="block" id="patterns">
-    <h2>징크스 검증</h2>
-    <p class="muted">과거 경기에서 얼마나 자주 나왔는지 확인하세요.</p>
+  return `<details class="block secondary-panel" id="patterns"${location.hash === "#patterns" ? " open" : ""}>
+    <summary>징크스 검증</summary>
     ${categories.slice(1).map((name, index) => `<details class="guide" ${index === 0 ? "open" : ""}>
       <summary>${name} · ${research.cases.filter(study => study.sport === name).length}개</summary>
       <div class="study-list">${patternCards(name)}</div>
     </details>`).join("")}
-  </section>`;
+  </details>`;
 }
 
 function marketBriefing(game) {
@@ -88,43 +87,6 @@ function marketBriefing(game) {
       ${market.links.map(sourceLink).join("")}
     </details>
   </section>`;
-}
-
-function showBoard() {
-  main.innerHTML = `<section class="hero"><p class="kicker">프로토 승부식 · 138회차</p><h1>스코어 옆, 경기의 맥락</h1>
-    <p>부상과 감독 발언, 홈·원정, 경기장 환경까지 확인하세요.</p>
-    <p class="snapshot">${snapshot} 스냅샷 · 선정 경기 브리핑</p></section>
-    <section aria-labelledby="games-title"><div class="bar"><h2 id="games-title">경기 브리핑</h2><input id="search" type="search" aria-label="팀, 리그, 구장 검색" placeholder="팀, 리그, 구장 검색"></div>
-    <div id="filters" class="filters" aria-label="종목 필터"></div><p id="count" class="muted" role="status"></p><div class="cards" id="cards"></div></section>
-    ${patternLibrary()}
-    <section class="block"><h2>경기 환경 가이드</h2>${guide(null,true)}</section>
-    <section class="block"><h2>데이터 범위</h2><p>베트맨 프로토 승부식 138회차 선정 경기입니다. 공개 편성 자료와 구단·리그 원문을 대조한 스냅샷입니다.</p>
-      ${source("round")} ${sourceLink(research.roundLink)}
-      <details class="weather-evidence"><summary>해외 시장 자료 안내</summary><p class="muted">해외 공개 배당은 비교용으로 제공됩니다. 같은 기준점과 경기 적용 시간을 확인하세요.</p>${research.marketSources.map(sourceLink).join("")}</details>
-    </section>`;
-  const filters = document.querySelector("#filters");
-  const search = document.querySelector("#search");
-  for (const name of categories) {
-    const button = document.createElement("button");
-    button.textContent = name;
-    button.type = "button";
-    button.addEventListener("click", () => { sport = name; renderCards(); });
-    filters.append(button);
-  }
-  function renderCards() {
-    for (const button of filters.children) button.setAttribute("aria-pressed", String(button.textContent === sport));
-    const query = search.value.trim().toLocaleLowerCase("ko");
-    const matches = games.filter(game => (sport === "전체" || game.sport === sport) &&
-      [game.home, game.away, game.league, game.venue].some(value => value.toLocaleLowerCase("ko").includes(query)));
-    document.querySelector("#count").textContent = `브리핑 ${matches.length}경기 · 한국 시간`;
-    document.querySelector("#cards").innerHTML = matches.map(game => `<article class="card">
-      <p class="meta"><span>${game.sport} · ${game.league}</span><span class="pill">${game.status}</span></p>
-      <h3>${game.home} <span class="muted">vs</span> ${game.away}</h3><p class="muted">${game.time} · ${game.venue}</p>
-      <p>${game.summary}</p><div class="actions"><a class="primary" href="${matchUrl(game)}">상세 브리핑</a><a href="${matchUrl(game,true)}">미니 보기</a></div>
-    </article>`).join("") || `<p class="empty">${sport === "야구" && !query ? "138회차에는 야구가 편성되지 않았습니다. 아래 야구 변수와 징크스 가이드를 이용할 수 있습니다." : "조건에 맞는 브리핑이 없습니다."}</p>`;
-  }
-  search.addEventListener("input", renderCards);
-  renderCards();
 }
 
 function metricList(rows) {
@@ -220,5 +182,8 @@ function showBriefing(game) {
   });
 }
 
-if (selected) showBriefing(selected);
-else showBoard();
+if (selected) showBriefing(withOfficialStatus(selected));
+else {
+  renderSchedule(main, games, params);
+  main.insertAdjacentHTML("beforeend", patternLibrary());
+}

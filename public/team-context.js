@@ -77,7 +77,7 @@ function recentResultTable(name, games) {
   </table>`;
 }
 
-function recentTeams(teams, basis, sport = "축구") {
+function recentTeams(teams, basis, sport, opened) {
   const sample = Math.min(5,...teams.map(([,games])=>games.length));
   const usePoints = sport === "축구";
   const rank = teams.map(([,games])=>{
@@ -92,6 +92,7 @@ function recentTeams(teams, basis, sport = "축구") {
       const scored = games.reduce((sum, r) => sum+r[3],0);
       const allowed = games.reduce((sum, r) => sum+r[4],0);
       const leads = index === leader;
+      const logKey = `form-log-${index}`;
       return `<section class="context-stat${leads ? " form-leader" : ""}">
         <div class="form-heading"><h4>${escape(name)}</h4>
           ${leads ? `<span class="form-advantage"><b>최근 우세</b></span>` : ""}
@@ -100,7 +101,7 @@ function recentTeams(teams, basis, sport = "축구") {
           <p class="form-record"><b data-result="승">${w}승</b>${usePoints || d ? ` <b data-result="무">${d}무</b>` : ""} <b data-result="패">${l}패</b></p>
           <p class="context-basis">${games.length}경기 · ${sport === "배구" ? `${scored}세트 획득 · ${allowed}세트 허용` : `${scored}득점 · ${allowed}실점`}</p>
           ${leads ? `<p class="form-edge">양 팀 최근 ${sample}경기 ${usePoints ? "승점" : "승수"} ${rank[index]} 대 ${rank[1-index]}</p>` : ""}
-          <details class="context-evidence form-evidence">
+          <details class="context-evidence form-evidence" data-keep-open="${logKey}"${opened.has(logKey) ? " open" : ""}>
             <summary>날짜별 결과</summary>
             ${recentResultTable(name,games)}
             ${link(source)}
@@ -238,7 +239,8 @@ export function teamContextPanels(match, round, {detail, editorial, auto, standi
   const homeCode = aliases[key(match.home)];
   const awayCode = aliases[key(match.away)];
   const epl = match.league.includes("프리미어리그") && homeCode && awayCode;
-  const eplSlot = type => `<div class="epl-slot" data-epl-type="${type}" data-epl-home="${escape(match.home)}" data-epl-away="${escape(match.away)}" data-epl-date="${escape(match.startsAt)}">
+  const openForms = [...opened].filter(id=>/^form-log-\d+$/.test(id)).join(",");
+  const eplSlot = type => `<div class="epl-slot" data-epl-type="${type}" data-epl-home="${escape(match.home)}" data-epl-away="${escape(match.away)}" data-epl-date="${escape(match.startsAt)}"${type === "recent" ? ` data-open-forms="${openForms}"` : ""}>
       <p class="context-basis">기록 불러오는 중…</p></div>`;
   const playerRows = extra.players ?? detail?.playerNotes?.map(p => [p.name,p.team,p.figure,`${p.availability} · ${p.scope} ${p.pattern ?? ""} ${p.note ?? ""}`.trim(),sources[p.refs[0]]]) ?? [];
   const weather = detail?.weatherAssessment;
@@ -258,7 +260,7 @@ export function teamContextPanels(match, round, {detail, editorial, auto, standi
     (epl || extra.comparison || extra.teamStats?.length) ? card("compare","팀 비교","⇆","홈·원정 득실점",
       extra.comparison ? statedComparison(extra.comparison) : epl ? eplSlot("compare") : automaticComparison(extra.teamStats,match),opened) : "",
     (extra.recent || epl) ? card("recent","최근 5경기","↗","승·무·패와 실제 점수",
-      extra.recent ? recentTeams(extra.recent, extra.recentBasis, match.sport) : eplSlot("recent"), opened) : "",
+      extra.recent ? recentTeams(extra.recent, extra.recentBasis, match.sport, opened) : eplSlot("recent"), opened) : "",
     card("headtohead","맞대결 기록","↔","이전 경기 날짜와 점수",renderHeadToHead(auto,match),opened),
     card("stats","경기 기록·통계","▥","구간별 점수와 양 팀 수치",renderMatchStatistics(auto,match),opened),
     card("standings","리그 순위","≡","시즌 팀 순위와 전적",renderStandings(standings,match),opened)
@@ -420,7 +422,7 @@ function eplContent(slot, history) {
   if (type === "recent") {
     return recentTeams([[homeName,teamRows(homeGames.slice(0,5),home,history.teams),recentSource],
       [awayName,teamRows(awayGames.slice(0,5),away,history.teams),recentSource]],
-      `EPL 리그 경기만 · 확보 자료 ${history.last}까지 · 이 대진 전`);
+      `EPL 리그 경기만 · 확보 자료 ${history.last}까지 · 이 대진 전`, "축구", new Set((slot.dataset.openForms ?? "").split(",")));
   }
 
   const seasonal = rows.filter(game => game[0] >= history.currentSeason.slice(0,4)+"-07-01");

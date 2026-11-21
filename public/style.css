@@ -767,3 +767,25 @@ a.overlay-launch {text-decoration:none}
 .form-log-badge {display:inline-grid;place-items:center;min-width:21px;min-height:21px;border-radius:4px;background:#263e50;font-weight:700}
 .form-log-badge[data-result="승"] {background:#174536}
 .form-log-badge[data-result="패"] {background:#532d43}
+
+/* In-progress scores share the normal fixture layout, including narrow cards. */
+.fixture-state {align-self:center;justify-self:start;display:grid;justify-items:start;gap:3px;min-width:0}
+.fixture-clock {font-size:.65rem;line-height:1.2;color:#acd6c8;max-width:100%;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.fixture[data-status=live] .fixture-versus,.mini-versus[data-status=live],.overlay-score[data-status=live] {color:#9cf7c8;font-weight:780}
+.fixture-line .fixture-status[data-status=live] {background:#183d33;border-color:#427b68;color:#a6f5ce}
+.fixture-line .fixture-status[data-status=waiting],.fixture-line .fixture-status[data-status=delayed],.fixture-line .fixture-status[data-status=postponed] {background:#372e22;border-color:#776043;color:#ffda9b}
+.fixture-mini-head .fixture-state {display:inline-flex;flex-wrap:wrap;align-items:center;gap:5px}
+.fixture-mini-head .fixture-status[data-status=live],.overlay-match-status[data-status=live] {color:#a6f5ce;font-weight:750}
+.overlay-match-status {display:inline;font-variant-numeric:tabular-nums;color:#d8dfea}
+.fixture-live-evidence {display:flex;flex-wrap:wrap;gap:3px 8px;margin:4px 0 10px;color:var(--muted);font-size:.73rem;line-height:1.4;overflow-wrap:anywhere}
+.fixture-live-evidence a {font-size:inherit}
+.fixture-live-evidence time {white-space:nowrap}
+@media(max-width:640px){
+  .fixture-line .fixture-state {grid-area:status;align-self:start}
+  .fixture-line .fixture-state>.fixture-status {grid-area:auto}
+}
+.live-interpretation{margin:10px 0 0;padding:8px 10px;border:1px solid #3b645e;border-left:3px solid #77d8c1;border-radius:8px;background:#142c31;font-size:.85rem;line-height:1.48}
+.live-interpretation-label{display:block;margin-bottom:3px;color:#b5e9d9;font-size:.72rem;font-weight:740}
+.live-interpretation p{margin:0}
+.live-interpretation strong{color:#d5fff3}
+.live-interpretation .live-interpretation-total{margin-top:4px;color:#bad4d7;font-size:.79rem}

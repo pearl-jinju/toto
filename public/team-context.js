@@ -272,13 +272,21 @@ export function teamContextPanels(match, round, {detail, editorial, auto, standi
   const allCards = [...cards.filter((_,i)=>baseline.has(ids[i])),...additional,
     ...cards.filter((_,i)=>!baseline.has(ids[i])),check];
   const notes = extra.records.filter(([title])=>!extra.headToHead?.length || !/^맞대결 \d+경기 ·/.test(title));
+  const forecast = auto?.outlook ?? (match.total ? {
+    kind:"market",
+    headline:`베트맨 기준 ${match.total.line}${match.sport === "축구" ? "골" : "점"} · ${match.total.under === match.total.over ? "언더·오버 배당이 같습니다" : `${match.total.under < match.total.over ? "언더" : "오버"} 쪽 배당이 낮습니다`}`,
+    basis:`언더 ${match.total.under.toFixed(2)} · 오버 ${match.total.over.toFixed(2)}`,
+    source:["베트맨 · 경기 배당",round.source],
+  } : null);
+  const pregame = ["live","final"].includes(match.live?.state);
+  const displayForecast = forecast && pregame ? {...forecast,archived:true} : forecast;
   return `<details class="match-context" data-keep-open="context"${opened.has("context") ? " open" : ""}>
     <summary>
       <span class="context-summary-guide" aria-hidden="true">${mascotArt("standing",true)}</span>
       <strong class="context-summary-title">상세 정보</strong>
       <span class="context-count">${allCards.length}개 항목</span><span class="context-plus" aria-hidden="true"></span>
     </summary>
-    ${renderOutlook(auto?.outlook ?? (match.total ? {kind:"market",headline:`베트맨 기준 ${match.total.line}${match.sport === "축구" ? "골" : "점"} · ${match.total.under === match.total.over ? "언더·오버 배당이 같습니다" : `${match.total.under < match.total.over ? "언더" : "오버"} 쪽 배당이 낮습니다`}`,basis:`언더 ${match.total.under.toFixed(2)} · 오버 ${match.total.over.toFixed(2)}`,source:["베트맨 · 경기 배당",round.source]} : null), match.voided,fixtureHistoryHref(match.number,roundId),{angle:auto?.matchAngle,interpretations:outlookInterpretations(auto),notes,
+    ${renderOutlook(displayForecast, match.voided,fixtureHistoryHref(match.number,roundId),{angle:auto?.matchAngle,interpretations:outlookInterpretations(auto),notes,
       extraEvidence:epl ? eplSlot("record") : "",openEvidence:opened.has("outlook-evidence")})}
     <div class="context-cards">${allCards.join("")}</div>
     ${detailSponsor}

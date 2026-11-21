@@ -1,6 +1,8 @@
 import { escapeHtml as escape, isSource, sourceCredit, sourceCredits, sourceLink } from "./source-links.js";
 import { mascotArt, mascotFigure, scoringPose, scoringWord, weatherHint, weatherPanel, weatherVisual } from "./match-visuals.js";
 
+import { liveClock, matchScore, matchStatus } from "./live-scores.js";
+
 const displayDate = new Intl.DateTimeFormat("ko-KR", {
   timeZone: "Asia/Seoul",
   month: "long",
@@ -144,9 +146,9 @@ export function renderAutomaticFactors(context,category) {
 }
 
 function fixtureCheck(match,round,context,available) {
-  const score = match.score?.join(" – ");
-  const status = match.voided ? "취소"
-    : score ? "종료" : Date.parse(match.startsAt) <= Date.now() ? "결과 대기" : "예정";
+  const score = matchScore(match)?.join(" – ");
+  const [state,status] = matchStatus(match);
+  const progress = liveClock(match.live);
   const missing = coverageLabels.filter(([category]) => !available.has(category)).map(([,label]) => label);
   const source = context?.coverage?.source;
   const matched = context?.coverage?.matched === true;
@@ -158,7 +160,8 @@ function fixtureCheck(match,round,context,available) {
     <dl class="quick-facts">
       ${renderLine("대회",match.league)}
       ${renderLine("시작",formatDate(match.startsAt))}
-      ${renderLine(status === "종료" ? "최종 점수" : "경기 상태",status === "종료" ? score : status)}
+      ${renderLine("경기 상태",[status,progress].filter(Boolean).join(" · "))}
+      ${renderLine(state === "live" ? "현재 점수" : "최종 점수",score)}
       ${renderLine("경기장",match.venue)}
     </dl>
     <div class="context-item">

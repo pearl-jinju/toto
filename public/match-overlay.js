@@ -2,6 +2,7 @@ import { escapeHtml as escape } from "./source-links.js";
 import { fixtureDateKeys, koreaDateKey, mountDateRoller } from "./date-roller.js";
 import { mascotArt } from "./match-visuals.js";
 import { teamLabel } from "./team-symbols.js";
+import { liveClock, matchScore, matchStatus } from "./live-scores.js";
 
 const sports = ["전체","축구","야구","농구","배구"];
 const overlaySizes = [
@@ -86,15 +87,20 @@ export function mountMatchOverlay(container, {close, resize, renderMatch, mode, 
       (!chosenDate || match.startsAt.startsWith(chosenDate)) &&
       terms.every(term => `${match.home} ${match.away} ${match.league} ${match.number}`.toLocaleLowerCase("ko").includes(term)));
     empty.hidden = visible.length > 0;
-    const ended = match => Boolean(match.score || match.voided);
-    visible.sort((a,b)=>Number(ended(a))-Number(ended(b)) ||
-      (ended(a) ? b.startsAt.localeCompare(a.startsAt) : a.startsAt.localeCompare(b.startsAt)));
+    const now = Date.now();
+    const state = match=>matchStatus(match,now)[0];
+    const placement = match => state(match) === "live" ? 0 : ["done","void"].includes(state(match)) ? 2 : 1;
+    visible.sort((a,b)=>placement(a)-placement(b) ||
+      (placement(a) === 2 ? b.startsAt.localeCompare(a.startsAt) : a.startsAt.localeCompare(b.startsAt)));
     const markup = visible.map(match => {
       const day = match.startsAt.slice(5,10).replace("-",".");
       const time = match.startsAt.slice(11,16);
+      const [status,label] = matchStatus(match,now);
+      const clock = liveClock(match.live);
+      const score = matchScore(match);
       return `<li><button type="button" data-overlay-match="${match.number}">
-        <span class="overlay-match-meta">${day} ${time} · ${escape(match.league)}</span>
-        <span class="overlay-match-teams">${teamLabel(match.home)} <span class="overlay-score">${match.score ? match.score.join(" : ") : "vs"}</span> ${teamLabel(match.away)}</span>
+        <span class="overlay-match-meta">${day} ${time} · ${escape(match.league)}${match.live ? ` <span class="overlay-match-status" data-status="${status}">${label}${clock ? ` · ${escape(clock)}` : ""}</span>` : ""}</span>
+        <span class="overlay-match-teams">${teamLabel(match.home)} <span class="overlay-score" data-status="${status}">${score ? score.join(" : ") : "vs"}</span> ${teamLabel(match.away)}</span>
       </button></li>`;
     }).join("");
     if (listMarkup !== markup) {

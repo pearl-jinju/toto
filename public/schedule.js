@@ -8,6 +8,8 @@ import { mascotArt } from "./match-visuals.js";
 import { hideBrokenTeamSymbols, teamLabel, teamSymbolSources } from "./team-symbols.js";
 import { androidOverlayIntent, mountAndroidOverlayChoice } from "./android-overlay-choice.js";
 import { sponsorSlot } from "./sponsor-slots.js";
+import { fetchLiveRound, liveClock, matchScore, matchStatus, withLiveScores } from "./live-scores.js";
+import { renderLiveAnalysis } from "./live-analysis.js";
 
 const publishedRound = {
   ...roundSnapshot,
@@ -70,11 +72,19 @@ function sourceLink(label, url) {
   return publicSource([label,url]);
 }
 
-function matchStatus(match, now) {
-  if (match.voided) return ["void", "취소"];
-  if (match.score) return ["done", "종료"];
-  if (Date.parse(match.startsAt) <= now) return ["pending", "결과 대기"];
-  return ["next", "예정"];
+function fixtureState(status, label, clock) {
+  return `<span class="fixture-state"><span class="fixture-status" data-status="${status}" aria-label="경기 상태 ${label}">${label}</span>
+    ${clock ? `<small class="fixture-clock">${text(clock)}</small>` : ""}</span>`;
+}
+
+function liveEvidence(live) {
+  if (!live) return "";
+  const observedAt = new Date(live.observedAt);
+  return `<p class="fixture-live-evidence">${publicSource(live.source)} <time datetime="${text(live.observedAt)}">${snapshotLabel.format(observedAt)} 확인</time></p>`;
+}
+
+function liveSignature(matches) {
+  return JSON.stringify(matches.filter(match=>match.live).map(match=>[match.number,match.live]));
 }
 
 function officialRoundId(roundData) {
@@ -87,8 +97,9 @@ function openPanels(container) {
 
 function quickAnalysis(match, detail, roundData, opened, auto, standings, {inOverlay = false, detailSponsor = ""} = {}) {
   const extra = roundData.editorial[match.number];
+  const score = matchScore(match);
   const ranked = match.odds.map((odd,index) => [odd,index]).filter(([odd]) => odd != null).sort((a,b) => a[0]-b[0]);
-  const marketSummary = !match.score && ranked.length > 1 && ranked[0][0] !== ranked[1][0]
+  const marketSummary = (!score || match.live?.state === "live") && ranked.length > 1 && ranked[0][0] !== ranked[1][0]
     ? `일반 배당은 ${[match.home + " 승", "무승부", match.away + " 승"][ranked[0][1]]} 쪽이 가장 낮습니다.` : "";
   const summary = extra?.summary ?? detail?.summary ?? marketSummary;
   const comparison = extra?.metrics ?? [];
@@ -101,17 +112,19 @@ function quickAnalysis(match, detail, roundData, opened, auto, standings, {inOve
   const contextPanels = teamContextPanels(match, roundData, {detail, editorial:extra, opened, auto, standings, detailSponsor});
 
   return `<div class="fixture-analysis">
+    ${match.live?.state === "live" && score ? renderLiveAnalysis(match, match.live) : ""}
+    ${liveEvidence(match.live)}
     ${inOverlay ? "" : contextPanels}
     ${summary ? `<p class="quick-summary">${text(summary)}</p>` : ""}
     ${comparison.length ? `<dl class="quick-comparison">${comparison.map(([label, home, away]) =>
       `<div><dt>${text(label)}</dt><dd><strong>${text(home)}</strong><span>vs</span><strong>${text(away)}</strong></dd></div>`).join("")}</dl>` : ""}
     <dl class="quick-facts">
-      ${match.score ? `<div><dt>최종 점수</dt><dd>${match.score.join(" – ")}</dd></div>` : ""}
+      ${score ? `<div><dt>${match.live?.state === "live" ? "현재 스코어" : "최종 점수"}</dt><dd>${score.join(" – ")}</dd></div>` : ""}
       ${venue ? `<div><dt>경기장</dt><dd>${text(venue)}</dd></div>` : ""}
       ${match.closesAt ? `<div><dt>발매 마감</dt><dd>${snapshotLabel.format(new Date(match.closesAt))}</dd></div>` : ""}
     </dl>
     ${quickOdds}
-    ${!summary && !match.score && !quickOdds ? '<p class="muted">아직 확인된 배당과 팀 비교 자료가 없습니다.</p>' : ""}
+    ${!summary && !score && !quickOdds ? '<p class="muted">아직 확인된 배당과 팀 비교 자료가 없습니다.</p>' : ""}
     ${inOverlay ? contextPanels : ""}
     <div class="quick-actions">${detail && !inOverlay ? `<a class="quick-detail" href="?match=${text(detail.id)}">상세 브리핑</a>` : ""}
       <details class="fixture-sources" data-keep-open="sources"${opened.has("sources") ? " open" : ""}><summary>출처</summary><div>${sourceLinks.join("")}</div></details></div>
@@ -130,14 +143,15 @@ function renderMiniFixture(container, match, detail, roundData, auto, standings,
   const opened = openPanels(container);
   if (!container.querySelector(".fixture-analysis")) opened.add("context");
   const focusedPanel = owner.activeElement?.closest("[data-keep-open]")?.dataset.keepOpen;
-  const [status, label] = matchStatus(match, Date.now());
+  const [status, label] = matchStatus(match);
+  const score = matchScore(match);
   if (!inOverlay) owner.title = `${match.home} vs ${match.away} · ${mode}`;
   const navigation = inOverlay ? "" : `<nav class="fixture-mini-nav" aria-label="경기 탐색"><strong>${mode}</strong><a href="?fixture=${match.number}">경기 분석표</a></nav>`;
   container.innerHTML = `${navigation}
     <section class="fixture-mini-head">
       <p>${text(match.league)} · ${roundData.round}회차</p>
-      <h1${inOverlay ? ' tabindex="-1"' : ""}>${teamLabel(match.home)} <span class="mini-versus">${match.score ? match.score.join(" : ") : "vs"}</span> ${teamLabel(match.away)}</h1>
-      <div><time datetime="${text(match.startsAt)}">${snapshotLabel.format(new Date(match.startsAt))} KST</time><span class="fixture-status" data-status="${status}">${label}</span></div>
+      <h1${inOverlay ? ' tabindex="-1"' : ""}>${teamLabel(match.home)} <span class="mini-versus" data-status="${status}">${score ? score.join(" : ") : "vs"}</span> ${teamLabel(match.away)}</h1>
+      <div><time datetime="${text(match.startsAt)}">${snapshotLabel.format(new Date(match.startsAt))} KST</time>${fixtureState(status,label,liveClock(match.live))}</div>
     </section>
     ${quickAnalysis(match, detail, roundData, opened, auto, standings, {inOverlay})}`;
   if (focusedPanel) {
@@ -149,13 +163,14 @@ function renderMiniFixture(container, match, detail, roundData, auto, standings,
 function matchRow(match, detail, now, roundData, expanded, packet, detailSponsor) {
   const opened = expanded.get(match.number);
   const [status, label] = matchStatus(match, now);
+  const score = matchScore(match);
   const time = match.startsAt.slice(11, 16);
   return `<details class="fixture" data-status="${status}" data-number="${match.number}" name="fixture"${opened ? " open" : ""}>
     <summary class="fixture-line">
       <time datetime="${text(match.startsAt)}" class="fixture-time">${time}</time>
       <span class="fixture-league"><span class="sport-mark sport-${{축구:"football",야구:"baseball",농구:"basketball",배구:"volleyball"}[match.sport]}">${text(match.sport.slice(0,1))}</span><span>${text(match.league)}</span></span>
-      <span class="fixture-teams">${teamLabel(match.home)}<span class="fixture-versus">${match.score ? match.score.join(" : ") : "vs"}</span>${teamLabel(match.away)}</span>
-      <span class="fixture-status" aria-label="경기 상태 ${label}">${label}</span>
+      <span class="fixture-teams">${teamLabel(match.home)}<span class="fixture-versus">${score ? score.join(" : ") : "vs"}</span>${teamLabel(match.away)}</span>
+      ${fixtureState(status,label,liveClock(match.live))}
       <span class="fixture-expand"><span>분석표</span><i aria-hidden="true"></i></span>
     </summary>
     ${opened ? quickAnalysis(match, detail, roundData, opened, packet?.contexts?.[match.number], packet?.standingsByLeague?.[match.league], {detailSponsor}) : ""}
@@ -196,6 +211,10 @@ export function renderSchedule(main, briefings, params) {
   let checkingContext = false;
   let nextContextCheck = 0;
   let contextPacket = null;
+  let livePacket = null;
+  let liveRequestRound = null;
+  let nextLiveCheck = 0;
+  let lastLiveSignature = "";
   let dateSignature = "";
   let timeState = -1;
   let waitingForOfficial = true;
@@ -250,7 +269,7 @@ export function renderSchedule(main, briefings, params) {
   ${railSponsor
     ? `<div class="schedule-with-rail"><div id="schedule-results"></div>${railSponsor}</div>`
     : '<div id="schedule-results"></div>'}
-  <details class="block secondary-panel"><summary>일정과 결과 출처</summary><p class="muted">베트맨 공개 경기표를 1분마다 확인합니다. 출전 변수와 팀 기록은 각 출처의 발표 시점을 기준으로 제공합니다.</p><div id="schedule-origin"></div></details>`;
+  <details class="block secondary-panel"><summary>일정과 결과 출처</summary><p class="muted">베트맨 경기표와 연결된 경기의 진행 스코어를 1분마다 확인합니다. 출전 변수와 팀 기록은 각 출처의 발표 시점을 기준으로 제공합니다.</p><div id="schedule-origin"></div></details>`;
 
   const results = compact ? main : main.querySelector("#schedule-results");
   const rail = main.querySelector(".sponsor-rail");
@@ -264,7 +283,7 @@ export function renderSchedule(main, briefings, params) {
   results.addEventListener("toggle", event => {
     const row = event.target;
     if (!row.matches?.(".fixture[open]") || row.querySelector(":scope > .fixture-analysis")) return;
-    const match = roundData.matches.find(item => item.number === Number(row.dataset.number));
+    const match = withLiveScores(roundData.matches.find(item => item.number === Number(row.dataset.number)),livePacket);
     if (match) row.insertAdjacentHTML("beforeend", quickAnalysis(match, detailFor(match), roundData, new Set(),
       contextPacket?.contexts?.[match.number], contextPacket?.standingsByLeague?.[match.league], {detailSponsor}));
   }, true);
@@ -303,9 +322,9 @@ export function renderSchedule(main, briefings, params) {
     return match && briefings.find(game => roundData.briefingNumbers[game.id] === match.number);
   }
 
-  function updateMini(container, number, pinned) {
+  function updateMini(container, matches, number, pinned) {
     const match = pinned === null || pinned === officialRoundId(roundData)
-      ? roundData.matches.find(item => item.number === number) : null;
+      ? matches.find(item => item.number === number) : null;
     renderMiniFixture(container, match, detailFor(match), roundData, contextPacket?.contexts?.[number],
       contextPacket?.standingsByLeague?.[match?.league],
       { loading:waitingForOfficial });
@@ -318,17 +337,20 @@ export function renderSchedule(main, briefings, params) {
       renderMatch: (content,match) => renderMiniFixture(content,match,detailFor(match),roundData,
         contextPacket?.contexts?.[match.number],contextPacket?.standingsByLeague?.[match.league],
         {inOverlay:true})});
-    panel.update(roundData.matches,officialRoundId(roundData));
+    panel.update(roundData.matches.map(match=>withLiveScores(match,livePacket)),officialRoundId(roundData));
     return panel;
   }
 
   if (overlayRoute) overlay = {panel:displayOverlay(main,"standalone",fixtureNumber)};
 
   function render(preserveExpansion = false) {
-    if (overlay && !overlay.window?.closed) overlay.panel.update(roundData.matches,officialRoundId(roundData));
+    const now = Date.now();
+    const matches = roundData.matches.map(match=>withLiveScores(match,livePacket,now));
+    lastLiveSignature = liveSignature(matches);
+    if (overlay && !overlay.window?.closed) overlay.panel.update(matches,officialRoundId(roundData));
     if (overlayRoute) return;
     if (mini) {
-      updateMini(main, fixtureNumber, pinnedRound);
+      updateMini(main, matches, fixtureNumber, pinnedRound);
       return;
     }
     updateDates();
@@ -345,16 +367,23 @@ export function renderSchedule(main, briefings, params) {
 
     for (const button of viewButtons) button.setAttribute("aria-pressed", String(button.dataset.view === view));
     const tokens = search.value.trim().toLocaleLowerCase("ko").split(/\s+/).filter(Boolean);
-    const now = Date.now();
-    const matching = roundData.matches.filter(match => (sport === "전체" || match.sport === sport) &&
+    const matching = matches.filter(match => (sport === "전체" || match.sport === sport) &&
       (!chosenDate || match.startsAt.startsWith(chosenDate)) &&
       tokens.every(token => `${match.home} ${match.away} ${match.league} ${match.number}`.toLocaleLowerCase("ko").includes(token)));
-    const completed = matching.filter(match => match.score).reverse();
-    const pending = matching.filter(match => matchStatus(match, now)[0] === "pending");
-    const upcoming = matching.filter(match => matchStatus(match, now)[0] === "next");
+    const state = new Map();
+    for (const match of matching) {
+      const [status] = matchStatus(match,now);
+      if (!state.has(status)) state.set(status,[]);
+      state.get(status).push(match);
+    }
+    const completed = (state.get("done") ?? []).reverse();
+    const pending = matching.filter(match => ["pending","waiting","delayed","postponed"].includes(matchStatus(match,now)[0]));
+    const upcoming = state.get("next") ?? [];
+    const live = state.get("live") ?? [];
     const lists = view === "finished" ? [["종료 경기", completed, limit]]
       : view === "all" ? [["회차 전체", matching, limit]]
-      : [["다가오는 경기", upcoming, limit], ["결과 대기", pending.slice(-4), 4], ["최근 종료", completed.slice(0, 6), 6]];
+      : [...(live.length ? [["진행 중",live,live.length]] : []), ["다가오는 경기", upcoming, limit],
+        ["결과 대기", pending.slice(-4), 4], ["최근 종료", completed.slice(0, 6), 6]];
     const groups = lists.filter(([, list], index) => list.length || index === 0);
     const sponsorGroup = tokens.length ? -1 : groups.findIndex(([,list,max]) => Math.min(list.length,max) >= 6);
     if (rail) rail.hidden = sponsorGroup < 0;
@@ -449,10 +478,11 @@ export function renderSchedule(main, briefings, params) {
     if (!button) return;
     const showFinished = button.hasAttribute("data-show-finished");
     const nextIndex = showFinished ? 0 : limit;
+    const groupIndex = showFinished ? 0 : [...results.querySelectorAll(".schedule-group")].indexOf(button.closest(".schedule-group"));
     if (showFinished) { view = "finished"; limit = pageSize; }
     else limit += pageSize;
-    render();
-    results.querySelectorAll(".fixture > summary")[nextIndex]?.focus();
+    render(true);
+    results.querySelectorAll(".schedule-group")[groupIndex]?.querySelectorAll(".fixture > summary")[nextIndex]?.focus();
   });
   function viewIsHidden() {
     return document.hidden && (!overlay?.window || overlay.window.closed);
@@ -477,6 +507,29 @@ export function renderSchedule(main, briefings, params) {
     }
   }
 
+  async function refreshLive() {
+    const now = Date.now();
+    const roundId = officialRoundId(roundData);
+    if (viewIsHidden() || liveRequestRound === roundId || now < nextLiveCheck) return;
+    if (!roundData.matches.some(match=>!match.voided && !match.score && Date.parse(match.startsAt) <= now)) return;
+    liveRequestRound = roundId;
+    nextLiveCheck = now + 60_000;
+    try {
+      const packet = await fetchLiveRound(roundId);
+      if (roundId === officialRoundId(roundData) && (!livePacket || packet.updatedAt >= livePacket.updatedAt)) {
+        livePacket = packet;
+      }
+    } catch {
+      // Keep the last observation only until the freshness limit.
+    } finally {
+      if (liveRequestRound === roundId) liveRequestRound = null;
+      if (roundId === officialRoundId(roundData)) {
+        const matches = roundData.matches.map(match=>withLiveScores(match,livePacket));
+        if (liveSignature(matches) !== lastLiveSignature) render(true);
+      }
+    }
+  }
+
   async function refresh() {
     if (refreshing || viewIsHidden()) return;
     refreshing = true;
@@ -494,6 +547,8 @@ export function renderSchedule(main, briefings, params) {
       if (!sameRound) {
         contextPacket = null;
         nextContextCheck = 0;
+        livePacket = null;
+        nextLiveCheck = 0;
       }
       roundData = next;
       updateMetadata(response.headers.get("X-Data-Stale") === "true");
@@ -507,12 +562,18 @@ export function renderSchedule(main, briefings, params) {
       }
       refreshing = false;
       refreshContext();
+      refreshLive();
     }
+  }
+
+  function tick() {
+    refresh();
+    refreshLive();
   }
 
   updateMetadata(true);
   render();
-  refresh();
-  setInterval(refresh, 60_000);
-  document.addEventListener("visibilitychange", refresh);
+  tick();
+  setInterval(tick, 60_000);
+  document.addEventListener("visibilitychange", tick);
 }

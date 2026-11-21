@@ -386,6 +386,10 @@ def make_weather(sport, city_data, start, data, has_roof):
     return {
         "forecastTag": tag,
         "visual": weather_visual(sport, temp, wind, rain, symbol, has_roof),
+        "forecastBasis": {
+            "city": city, "latitude": lat, "longitude": lon, "validAt": hour.isoformat(),
+            "issuedAt": issued_at.isoformat() if issued_at else None,
+        },
         "category": "weather", "title": f"{city} 도심 경기 시간대 예보", "value": value,
         "text": f"{tip} {model_hour} · {' · '.join(measures)}{model}. 도심 예보입니다.",
         "source": ["MET Norway · Locationforecast (CC BY 4.0)", forecast_url(lat, lon)], "date": hour.isoformat(),

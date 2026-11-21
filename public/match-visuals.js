@@ -1,8 +1,11 @@
-const mascotFiles = {
-  standing: new URL("./assets/mascot/sun-moon-standing.png", import.meta.url).href,
-  running: new URL("./assets/mascot/sun-moon-running.png", import.meta.url).href,
-  resting: new URL("./assets/mascot/sun-moon-resting.png", import.meta.url).href
+const scoringMotions = ["standing","running","resting"];
+const weatherMotions = {
+  calm:"standing", rain:"umbrella", wind:"bracing", fog:"looking", frost:"bundled", heat:"cooling",
+  indoor:"courtside", roof:"looking", unknown:"looking"
 };
+const mascotFiles = Object.fromEntries([...new Set([...scoringMotions,...Object.values(weatherMotions)])].map(pose =>
+  [pose,new URL(`./assets/mascot/sun-moon-${pose}.png`,import.meta.url).href]
+));
 const conditions = {
   calm:"평온한 예보", rain:"비", wind:"강한 바람", fog:"안개", frost:"낮은 기온", heat:"더위",
   indoor:"실내", roof:"지붕 개폐 미확인", unknown:"예보 자료 미확인"
@@ -21,7 +24,7 @@ function escape(value) {
 
 export function scoringPose(outlook) {
   if (outlook?.kind !== "model") return "standing";
-  if (Object.hasOwn(mascotFiles, outlook.pose)) return outlook.pose;
+  if (scoringMotions.includes(outlook.pose)) return outlook.pose;
   // Older round snapshots can stay visible while their refreshed data is collected.
   if (outlook.headline?.includes("오버 쪽으로")) return "running";
   if (outlook.headline?.includes("언더 쪽으로")) return "resting";
@@ -76,7 +79,7 @@ export function weatherPanel(visual) {
   const bars = [1,2,3].map(step => `<i${step <= lit ? ' class="lit"' : ""}></i>`).join("");
   const readings = Array.isArray(visual?.readings) ? visual.readings : [];
   return `<div class="weather-visual" data-impact="${lit}" data-condition="${escape(visual?.condition ?? "unknown")}">
-    ${mascotFigure(conditionWords[visual?.condition] ?? conditionWords.unknown)}
+    ${mascotFigure(conditionWords[visual?.condition] ?? conditionWords.unknown,weatherMotions[visual?.condition] ?? weatherMotions.unknown)}
     <div class="weather-visual-text">
       <span class="weather-visual-label">${escape(visual?.label ?? conditions[visual?.condition] ?? conditions.unknown)}</span>
       <div class="weather-impact"><strong>${level}</strong><span class="weather-impact-bars" aria-hidden="true">${bars}</span></div>

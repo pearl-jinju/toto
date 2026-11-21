@@ -270,3 +270,30 @@ details[open] > summary .context-plus::after {transform:none}
 .mascot-word {color:var(--tone,var(--weather-tone,var(--ink)));font-size:.83rem;line-height:1.35;font-weight:780;letter-spacing:-.015em;text-align:center}
 .weather-visual .mascot-word {font-size:.78rem}
 @media(max-width:460px) {.mascot-word {font-size:.78rem}}
+
+.source-credit {display:inline-block;color:var(--muted);font-size:.83rem;line-height:1.45;margin:3px 9px 3px 0}
+.outlook-links {display:flex;align-items:baseline;gap:3px 12px;flex-wrap:wrap;margin-top:8px}
+.history-shortcut {display:inline-block;padding:4px 9px;border:1px solid #40566a;border-radius:6px;font-size:.87rem;font-weight:720;text-underline-offset:3px}
+.outlook-credits {font-size:.82rem;color:var(--muted)}
+.outlook-credits > div,.history-credits {display:flex;gap:3px 10px;flex-wrap:wrap;margin-top:5px}
+.history-header {margin:16px 0 20px}
+.history-header h1 {margin:4px 0 8px;line-height:1.25}
+.history-header p {margin:4px 0}
+.history-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.history-grid .history-team {margin-top:0}
+.history-team {min-width:0;padding:13px}
+.history-team h2 {margin:0 0 3px;font-size:1.12rem}
+.history-team > p {margin:0 0 9px;font-size:.85rem}
+.history-table {border-collapse:collapse;width:100%;font-size:.87rem}
+.history-table th,.history-table td {padding:7px 4px;border-bottom:1px solid #314457;text-align:left}
+.history-table thead th {color:var(--muted)}
+.history-table tbody th {font-weight:620}
+.history-table th small {display:block;color:var(--muted);line-height:1.2;font-size:.76rem}
+.history-table .history-score {white-space:nowrap;font-weight:740;font-variant-numeric:tabular-nums}
+.history-table td:first-child {white-space:nowrap;color:var(--muted);font-variant-numeric:tabular-nums}
+@media(max-width:680px) {.history-grid {grid-template-columns:1fr;gap:0}}
+
+.weather-origin {display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;margin:6px 0;color:var(--muted);font-size:.83rem}
+.weather-origin strong {color:var(--ink);font-size:.92rem}
+.weather-source-details {margin:6px 0 10px}
+.weather-source-details div {display:grid;grid-template-columns:minmax(72px,.65fr) minmax(0,1.35fr);gap:3px 8px;padding:3px 0}

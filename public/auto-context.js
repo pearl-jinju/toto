@@ -1,3 +1,4 @@
+import { escapeHtml as escape, isSource, sourceCredits, sourceLink } from "./source-links.js";
 import { mascotFigure, scoringPose, scoringWord, weatherHint, weatherPanel, weatherVisual } from "./match-visuals.js";
 
 const displayDate = new Intl.DateTimeFormat("ko-KR", {
@@ -9,8 +10,6 @@ const displayDate = new Intl.DateTimeFormat("ko-KR", {
   minute: "2-digit",
   hourCycle: "h23"
 });
-const htmlCharacters = { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" };
-
 const categories = [
   ["venue","구장 세부","◎","경기장과 시설"],
   ["weather","경기 환경","","예보와 경기 중 볼 점"],
@@ -25,21 +24,6 @@ const coverageLabels = [
   ...categories.slice(0,5).map(([category,title]) => [category,title])
 ];
 
-function escape(value) {
-  return String(value ?? "").replace(/[&<>"']/g, char => htmlCharacters[char]);
-}
-
-function sourceLink(pair) {
-  if (!Array.isArray(pair) || typeof pair[0] !== "string" || typeof pair[1] !== "string") return "";
-  try {
-    const address = new URL(pair[1]);
-    if (address.protocol !== "https:" || address.username || address.password) return "";
-    return `<a class="source" href="${escape(address.href)}" target="_blank" rel="noopener noreferrer">${escape(pair[0])}</a>`;
-  } catch {
-    return "";
-  }
-}
-
 function formatDate(date) {
   if (typeof date !== "string" || !date) return "";
   if (/^\d{4}-\d{2}-\d{2}$/.test(date)) return date;
@@ -52,16 +36,50 @@ function renderLine(label,value) {
   return value ? `<div><dt>${label}</dt><dd>${escape(value)}</dd></div>` : "";
 }
 
+function forecastBasis(fact) {
+  if (fact.forecastBasis?.city) return fact.forecastBasis;
+  try {
+    const url = new URL(fact.source?.[1]);
+    const city = fact.title?.match(/^(.*) 도심 경기 시간대 예보$/)?.[1];
+    if (url.hostname !== "api.met.no" || !city) return null;
+    const lat = url.searchParams.get("lat");
+    const lon = url.searchParams.get("lon");
+    return {city, latitude:lat === null ? null : Number(lat), longitude:lon === null ? null : Number(lon), validAt:fact.date};
+  } catch { return null; }
+}
+
+function formatCoordinates(latitude,longitude) {
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude)>90 || Math.abs(longitude)>180) return "";
+  const coordinate = (value,positive,negative) => `${Math.abs(value).toFixed(2)}°${value < 0 ? negative : positive}`;
+  return `${coordinate(latitude,"N","S")}, ${coordinate(longitude,"E","W")}`;
+}
+
+function renderForecastBasis(basis) {
+  if (!basis) return "";
+  return `<dl class="weather-source-details">
+    ${renderLine("예보 위치",`${basis.city} 도심 대표 지점`)}
+    ${renderLine("대표 좌표",formatCoordinates(basis.latitude,basis.longitude))}
+    ${renderLine("예보 대상 시각",basis.validAt ? `${formatDate(basis.validAt)} · 한국 시간` : "")}
+    ${renderLine("예보 발표 시각",basis.issuedAt ? `${formatDate(basis.issuedAt)} · 한국 시간` : "")}
+  </dl>`;
+}
+
 function renderFact(fact) {
   const {title, value, text, date, source, reference} = fact;
   if (fact.category === "weather") {
+    const basis = forecastBasis(fact);
     return `<section class="context-item">
       ${weatherPanel(weatherVisual(fact))}
+      ${basis ? `<p class="weather-origin"><strong>${escape(basis.city)} 도심 기준</strong> <span>노르웨이 기상청(MET Norway) · 경기 시간대 예보</span></p>` : ""}
       <p class="weather-explanation">${escape(value ?? title)}</p>
-      <details class="weather-evidence"><summary>예보 해석과 출처</summary>
+      <details class="weather-evidence"><summary>${basis ? "예보 시각·기준 위치" : "환경 해석과 출처"}</summary>
+        ${renderForecastBasis(basis)}
         <p>${escape(text)}</p>
-        ${date ? `<p class="context-basis">${escape(formatDate(date))} 기준</p>` : ""}
-        ${sourceLink(source)}${sourceLink(reference)}
+        ${basis ? `<p class="context-basis">도심 대표 지점의 예보입니다. 경기장 잔디나 관중석에서 측정한 값은 확인되지 않았습니다.</p>
+          ${sourceLink(["MET Norway · 예보 제공 방식","https://api.met.no/doc/locationforecast/HowTO"])}`
+          : sourceLink(source)}
+        ${!basis && date ? `<p class="context-basis">${escape(formatDate(date))} 기준</p>` : ""}
+        ${sourceLink(reference)}
       </details>
     </section>`;
   }
@@ -111,9 +129,9 @@ function fixtureCheck(match,round,context,available) {
 
 export function weatherFacts(context) {
   const facts = Array.isArray(context?.factors) ? context.factors : [];
-  const weather = facts.filter(fact => fact?.category === "weather" && fact.title && sourceLink(fact.source));
+  const weather = facts.filter(fact => fact?.category === "weather" && fact.title && isSource(fact.source));
   if (weather.length) return weather;
-  const roof = facts.find(fact => fact?.category === "venue" && weatherVisual(fact).condition === "roof" && sourceLink(fact.source));
+  const roof = facts.find(fact => fact?.category === "venue" && weatherVisual(fact).condition === "roof" && isSource(fact.source));
   return roof ? [{...roof, category:"weather"}] : [];
 }
 
@@ -126,7 +144,7 @@ export function automaticCards(match, round, context, existingIds, card, opened)
   const facts = Array.isArray(context?.factors) ? context.factors : [];
   const grouped = new Map();
   for (const fact of facts) {
-    if (!fact?.title || !sourceLink(fact.source)) continue;
+    if (!fact?.title || !isSource(fact.source)) continue;
     const items = grouped.get(fact.category) ?? [];
     items.push(fact);
     grouped.set(fact.category,items);
@@ -166,11 +184,12 @@ export async function fetchAutomaticContext(roundId) {
   return data;
 }
 
-export function renderOutlook(outlook, cancelled = false) {
+export function renderOutlook(outlook, cancelled = false, historyHref = "") {
   if (cancelled) return "";
   const pose = scoringPose(outlook);
   const label = outlook?.kind === "market" ? "베트맨 배당 참고" : "득점 전망";
   const headline = outlook?.headline ?? "현재 확인된 자료로는 득점 전망을 내기 어렵습니다";
+  const credits = sourceCredits([outlook?.source,...(outlook?.evidence?.sources ?? [])]);
   return `<section class="outlook-box" data-pose="${pose}">
     <div class="outlook-visual">
       ${mascotFigure(scoringWord(outlook,pose),pose)}
@@ -182,6 +201,9 @@ export function renderOutlook(outlook, cancelled = false) {
     </div>
     ${outlook?.basis ? `<p class="outlook-basis">${escape(outlook.basis)}</p>` : ""}
     ${outlook?.weather ? `<p class="outlook-basis"><strong>날씨 변수</strong> ${escape(outlook.weather)}</p>` : ""}
-    ${sourceLink(outlook?.source)}
+    <div class="outlook-links">
+      ${historyHref ? `<a class="history-shortcut" href="${escape(historyHref)}">경기 이력 보기</a>` : ""}
+      ${credits ? `<details class="outlook-credits"><summary>자료 제공처</summary><div>${credits}</div></details>` : ""}
+    </div>
   </section>`;
 }

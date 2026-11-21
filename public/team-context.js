@@ -1,3 +1,5 @@
+import { sourceLink as link } from "./source-links.js";
+import { fixtureHistoryHref } from "./history-report.js";
 import { fixtureContext } from "./fixture-context.js";
 import { sources } from "./data.js";
 import { automaticCards, renderAutomaticFactors, renderOutlook, weatherFacts } from "./auto-context.js";
@@ -28,15 +30,6 @@ function key(value) {
 
 function escape(value) {
   return String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-}
-
-function link(pair) {
-  if (!Array.isArray(pair)) return "";
-  try {
-    const address = new URL(pair[1]);
-    if (address.protocol !== "https:" || address.username || address.password) return "";
-  } catch { return ""; }
-  return `<a class="source" href="${escape(pair[1])}" target="_blank" rel="noopener noreferrer">${escape(pair[0])}</a>`;
 }
 
 function card(id, title, icon, hint, body, opened) {
@@ -157,7 +150,8 @@ function stadium(venue, onSite) {
 
 export function teamContextPanels(match, round, {detail, editorial, auto, opened = new Set()} = {}) {
   if (!match) return "";
-  const scoped = (round.year % 100)*10000 + round.round === fixtureContext.roundId;
+  const roundId = (round.year % 100)*10000 + round.round;
+  const scoped = roundId === fixtureContext.roundId;
   const curated = scoped ? fixtureContext.numbers[match.number] ?? {} : {};
   const matched = auto?.fixture;
   if (!matched || ["number","league","home","away","startsAt"].some(key => matched[key] !== match[key])) auto = null;
@@ -176,6 +170,7 @@ export function teamContextPanels(match, round, {detail, editorial, auto, opened
     (venue || extra.onSite) ? card("venue","구장 특징","◎","잔디·시설·당일 조건",stadium(venue,extra.onSite)+renderAutomaticFactors(auto,"venue"),opened) : "",
     weather && !weatherFacts(auto).length ? card("weather","경기 환경","",weatherHint(curatedWeatherVisual(detail)),
       `${weatherPanel({...curatedWeatherVisual(detail),readings:weather.readings.map(([label,value])=>({label,value}))})}
+      <p class="weather-origin"><strong>${escape(weather.basis)}</strong></p>
       <p>${escape(weather.impact)}</p>
       <details class="weather-evidence"><summary>중계에서 볼 점 · 출처</summary>
       <p>${escape(weather.watch)}</p><p class="context-basis">${escape(weather.basis)}</p>
@@ -196,7 +191,7 @@ export function teamContextPanels(match, round, {detail, editorial, auto, opened
   const allCards = [...additional,...cards,check];
   return `<details class="match-context" data-keep-open="context"${opened.has("context") ? " open" : ""}>
     <summary><span>상세 정보</span><span class="context-count">${allCards.length}개 항목</span><span class="context-plus" aria-hidden="true"></span></summary>
-    ${renderOutlook(auto?.outlook ?? (match.total ? {kind:"market",headline:`베트맨 기준 ${match.total.line}${match.sport === "축구" ? "골" : "점"} · ${match.total.under === match.total.over ? "언더·오버 배당이 같습니다" : `${match.total.under < match.total.over ? "언더" : "오버"} 쪽 배당이 낮습니다`}`,basis:`언더 ${match.total.under.toFixed(2)} · 오버 ${match.total.over.toFixed(2)}`,source:["베트맨 · 경기 배당",round.source]} : null), match.voided)}
+    ${renderOutlook(auto?.outlook ?? (match.total ? {kind:"market",headline:`베트맨 기준 ${match.total.line}${match.sport === "축구" ? "골" : "점"} · ${match.total.under === match.total.over ? "언더·오버 배당이 같습니다" : `${match.total.under < match.total.over ? "언더" : "오버"} 쪽 배당이 낮습니다`}`,basis:`언더 ${match.total.under.toFixed(2)} · 오버 ${match.total.over.toFixed(2)}`,source:["베트맨 · 경기 배당",round.source]} : null), match.voided,fixtureHistoryHref(match.number,roundId))}
     <div class="context-cards">${allCards.join("")}</div>
   </details>`;
 }

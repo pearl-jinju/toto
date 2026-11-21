@@ -2,7 +2,9 @@ from datetime import timedelta
 from math import exp, floor, sqrt
 from statistics import mean, pstdev, NormalDist
 
-from scripts.fixture_matching import completed_history, known_source, pair, score_of, timestamp
+from scripts.fixture_matching import (
+    KST, completed_history, display_name, known_source, pair, score_of, team_matches, timestamp,
+)
 
 
 UNITS = {"축구": "골", "야구": "점", "농구": "점", "배구": "세트"}
@@ -43,11 +45,40 @@ def matchup_history(events, teams, before):
                 or not event["complete"] or not score or set(oriented) != teams or not known_source(event)):
             continue
         key = next((key for key in rows if key[1:] == oriented and abs(key[0] - when) < timedelta(days=1)), None)
-        if key is not None and rows[key] != sum(score):
+        if key is None:
+            rows[(when, *oriented)] = (score, event)
+        elif rows[key] is not None and sum(rows[key][0]) != sum(score):
             rows[key] = None
-        elif key is None:
-            rows[(when, *oriented)] = sum(score)
-    return [value for key,value in sorted(rows.items(), reverse=True) if value is not None][:5]
+    return [(*key, *value) for key,value in sorted(rows.items(), reverse=True) if value is not None][:5]
+
+
+def outlook_evidence(fixture, team_keys, selected, h2h, league_count):
+    names = dict(zip(team_keys, (fixture["home"], fixture["away"])))
+    match_date = lambda day: day.astimezone(KST).date().isoformat()
+    teams = [
+        {
+            "team": names[key],
+            "games": [
+                [match_date(day), opponent, venue, gf, ga]
+                for day, opponent, venue, gf, ga, _ in team_matches(rows, key, names)
+            ],
+        }
+        for key, rows in zip(team_keys, selected)
+    ]
+    head_to_head = [
+        [match_date(day), display_name(home, row["home"], names), display_name(away, row["away"], names), *score]
+        for day, home, away, score, row in h2h
+    ]
+    sources = {}
+    for rows in (*selected, h2h):
+        for *_, row in rows:
+            source = known_source(row)
+            if source:
+                sources.setdefault(source[1], source)
+    evidence = {"teams": teams, "headToHead": head_to_head, "sources": list(sources.values())}
+    if league_count >= 12:
+        evidence["leagueCount"] = league_count
+    return evidence
 
 
 def market_context(fixture, source, total, unit):
@@ -125,7 +156,8 @@ def build_outlook(fixture, matched_event, events, factors, source):
     observed = (home_for + away_against + away_for + home_against) / 2
     effective_n = min(map(len, selected))
     midpoint = (observed * effective_n + sum(prior) * PRIOR_GAMES) / (effective_n + PRIOR_GAMES)
-    h2h = matchup_history(events, {home, away}, now)
+    matchup_rows = matchup_history(events, {home, away}, now)
+    h2h = [sum(row[3]) for row in matchup_rows]
     if h2h:
         weight = min(len(h2h) / 20, 0.2)
         midpoint = midpoint * (1 - weight) + mean(h2h) * weight
@@ -187,4 +219,5 @@ def build_outlook(fixture, matched_event, events, factors, source):
     return {
         "kind": "model", "pose": scoring_pose, "headline": headline, "basis": basis, "range": f"{low}–{high}{unit}",
         "weather": weather_note, "source": sources[0], "archived": fixture.get("status") == "finished",
+        "evidence": outlook_evidence(fixture, (home, away), selected, matchup_rows, len(league)),
     }

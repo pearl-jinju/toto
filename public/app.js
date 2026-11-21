@@ -1,3 +1,5 @@
+import { sourceLink } from "./source-links.js";
+import { fixtureHistoryHref, renderHistoryPage } from "./history-report.js";
 import { snapshot, sources, games } from "./data.js";
 import { research } from "./research.js";
 import { publishedMatchInfo, renderSchedule, withOfficialStatus } from "./schedule.js";
@@ -14,9 +16,6 @@ const mini = params.get("view") === "mini";
 // User-entered search text is only used for comparison.
 function source(key) {
   return key ? sourceLink(sources[key]) : "";
-}
-function sourceLink([label, url]) {
-  return `<a class="source" href="${url}" target="_blank" rel="noopener noreferrer">${label}</a>`;
 }
 function matchUrl(game, compact = mini) {
   return `?match=${game.id}${compact ? "&view=mini" : ""}`;
@@ -108,6 +107,7 @@ function weatherCard(game) {
     <h2>경기장 환경</h2>
     <div data-brief-weather>
       ${weatherPanel({...curatedWeatherVisual(game),readings:readings.map(([label,value])=>({label,value}))})}
+      <p class="weather-origin"><strong>${basis}</strong></p>
       <p class="weather-explanation">${impact}</p>
       <details class="weather-evidence"><summary>중계에서 볼 점 · 출처</summary>
         <p>${watch}</p><p class="muted">${basis} · ${details}</p>
@@ -170,7 +170,7 @@ function loadBriefingOutlook(container,game) {
       const packet = await fetchAutomaticContext(roundId);
       const context = packet?.contexts?.[number];
       if (context) {
-        if (context.outlook) target.innerHTML = renderOutlook(context.outlook);
+        if (context.outlook) target.innerHTML = renderOutlook(context.outlook,false,fixtureHistoryHref(number,roundId));
         const weather = renderWeatherFacts(context);
         const weatherSlot = container.querySelector("[data-brief-weather]");
         if (weatherSlot && weather) weatherSlot.innerHTML = weather;
@@ -211,7 +211,8 @@ function showBriefing(game) {
   });
 }
 
-if (selected) showBriefing(withOfficialStatus(selected));
+if (params.get("view") === "history") renderHistoryPage(main,params);
+else if (selected) showBriefing(withOfficialStatus(selected));
 else {
   renderSchedule(main, games, params);
   main.insertAdjacentHTML("beforeend", patternLibrary());

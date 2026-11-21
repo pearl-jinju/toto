@@ -1,3 +1,4 @@
+import { sourceLink as publicSource } from "./source-links.js";
 import { roundSnapshot } from "./fixtures.js";
 import { attachTeamContext, teamContextPanels } from "./team-context.js";
 import { fetchAutomaticContext } from "./auto-context.js";
@@ -60,7 +61,7 @@ function text(value) {
 }
 
 function sourceLink(label, url) {
-  return `<a class="source" href="${text(url)}" target="_blank" rel="noopener noreferrer">${text(label)}</a>`;
+  return publicSource([label,url]);
 }
 
 function matchStatus(match, now) {

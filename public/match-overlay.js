@@ -1,0 +1,120 @@
+import { escapeHtml as escape } from "./source-links.js";
+
+const sports = ["전체","축구","야구","농구","배구"];
+
+export function mountMatchOverlay(container, {close, renderMatch, mode, initialMatch}) {
+  container.innerHTML = `<section class="match-overlay" role="region" aria-label="경기 분석 오버레이" data-mode="${mode}">
+    <div class="overlay-header">
+      <strong>경기 분석</strong>
+      <div class="overlay-actions">
+        <button type="button" class="overlay-back" hidden>경기 목록</button>
+        ${close ? '<button type="button" class="overlay-close" aria-label="오버레이 닫기">닫기</button>' : ""}
+      </div>
+    </div>
+    <div class="overlay-picker">
+      <div class="overlay-filters">
+        <label><span class="sr-only">경기 검색</span><input type="search" placeholder="팀 · 리그 · 경기번호"></label>
+        <label><span class="sr-only">종목 선택</span><select>${sports.map(sport=>`<option value="${sport}">${sport === "전체" ? "전체 종목" : sport}</option>`).join("")}</select></label>
+      </div>
+      <ul class="overlay-list" aria-label="경기 목록"></ul>
+      <p class="schedule-empty overlay-empty" hidden>검색 조건에 맞는 경기가 없습니다.</p>
+    </div>
+    <div class="overlay-detail fixture-mini" hidden></div>
+  </section>`;
+  const panel = container.firstElementChild;
+  const picker = panel.querySelector(".overlay-picker");
+  const list = panel.querySelector(".overlay-list");
+  const empty = panel.querySelector(".overlay-empty");
+  const search = panel.querySelector("input");
+  const sport = panel.querySelector("select");
+  const back = panel.querySelector(".overlay-back");
+  const detail = panel.querySelector(".overlay-detail");
+  let matches = [];
+  let active = initialMatch ?? null;
+  let activeRound;
+  let listMarkup = null;
+
+  function results() {
+    const query = search.value.trim().toLocaleLowerCase("ko");
+    const terms = query ? query.split(/\s+/) : [];
+    const visible = matches.filter(match => (sport.value === "전체" || match.sport === sport.value) &&
+      terms.every(term => `${match.home} ${match.away} ${match.league} ${match.number}`.toLocaleLowerCase("ko").includes(term)));
+    empty.hidden = visible.length > 0;
+    const ended = match => Boolean(match.score || match.voided);
+    visible.sort((a,b)=>Number(ended(a))-Number(ended(b)) ||
+      (ended(a) ? b.startsAt.localeCompare(a.startsAt) : a.startsAt.localeCompare(b.startsAt)));
+    const markup = visible.map(match => {
+      const day = match.startsAt.slice(5,10).replace("-",".");
+      const time = match.startsAt.slice(11,16);
+      return `<li><button type="button" data-overlay-match="${match.number}">
+        <span class="overlay-match-meta">${day} ${time} · ${escape(match.league)}</span>
+        <span><strong>${escape(match.home)}</strong> <span class="overlay-score">${match.score ? match.score.join(" : ") : "vs"}</span> <strong>${escape(match.away)}</strong></span>
+      </button></li>`;
+    }).join("");
+    if (listMarkup !== markup) {
+      list.innerHTML = markup;
+      listMarkup = markup;
+    }
+  }
+
+  function render() {
+    const match = active === null ? null : matches.find(item=>item.number === active);
+    if (!match) active = null;
+    picker.hidden = Boolean(match);
+    detail.hidden = !match;
+    back.hidden = !match;
+    if (match) renderMatch(detail,match);
+    else {
+      detail.replaceChildren();
+      results();
+    }
+  }
+
+  function choose(number) {
+    if (active === number) return;
+    active = number;
+    detail.replaceChildren();
+    detail.scrollTop = 0;
+    render();
+    if (number === null) search.focus();
+    else detail.querySelector("h1")?.focus();
+  }
+
+  search.addEventListener("input",results);
+  sport.addEventListener("change",results);
+  back.addEventListener("click",()=>choose(null));
+  panel.querySelector(".overlay-close")?.addEventListener("click",close);
+  list.addEventListener("click",event=>{
+    const game = event.target.closest("[data-overlay-match]");
+    if (game) choose(Number(game.dataset.overlayMatch));
+  });
+  panel.addEventListener("keydown",event=>{
+    if (event.key !== "Escape") return;
+    if (active !== null) choose(null);
+    else close?.();
+  });
+  detail.addEventListener("click",event=>{
+    if (!event.target.closest(".history-shortcut")) return;
+    event.preventDefault();
+    const section = detail.querySelector('.context-card[data-context-card="recent"], .context-card[data-context-card="headtohead"]');
+    if (!section) return;
+    section.closest(".match-context").open = true;
+    section.open = true;
+    section.querySelector("summary")?.focus();
+  });
+
+  return {
+    update(next,round) {
+      matches = next;
+      if (activeRound != null && activeRound !== round) {
+        active = null;
+        detail.replaceChildren();
+      }
+      activeRound = round;
+      render();
+    },
+    focus() {
+      (active === null ? search : back).focus({preventScroll:true});
+    }
+  };
+}

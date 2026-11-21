@@ -2,6 +2,7 @@ import { sourceLink as publicSource } from "./source-links.js";
 import { roundSnapshot } from "./fixtures.js";
 import { attachTeamContext, teamContextPanels } from "./team-context.js";
 import { fetchAutomaticContext } from "./auto-context.js";
+import { mountMatchOverlay } from "./match-overlay.js";
 
 const publishedRound = {
   ...roundSnapshot,
@@ -75,15 +76,11 @@ function officialRoundId(roundData) {
   return (roundData.year % 100) * 10_000 + roundData.round;
 }
 
-function fixtureMiniHref(number, roundData) {
-  return `?fixture=${number}&view=mini&round=${officialRoundId(roundData)}`;
-}
-
 function openPanels(container) {
   return new Set(Array.from(container.querySelectorAll("[data-keep-open][open]"), panel => panel.dataset.keepOpen));
 }
 
-function quickAnalysis(match, detail, roundData, opened, auto, standings) {
+function quickAnalysis(match, detail, roundData, opened, auto, standings, inOverlay = false) {
   const extra = roundData.editorial[match.number];
   const ranked = match.odds.map((odd,index) => [odd,index]).filter(([odd]) => odd != null).sort((a,b) => a[0]-b[0]);
   const marketSummary = !match.score && ranked.length > 1 && ranked[0][0] !== ranked[1][0]
@@ -108,13 +105,13 @@ function quickAnalysis(match, detail, roundData, opened, auto, standings) {
     </dl>
     ${!summary && !match.score && !oddsAvailable ? '<p class="muted">아직 확인된 배당과 팀 비교 자료가 없습니다.</p>' : ""}
     ${teamContextPanels(match, roundData, {detail, editorial:extra, opened, auto, standings})}
-    <div class="quick-actions">${detail ? `<a class="quick-detail" href="?match=${text(detail.id)}">상세 브리핑</a>` : ""}
+    <div class="quick-actions">${detail && !inOverlay ? `<a class="quick-detail" href="?match=${text(detail.id)}">상세 브리핑</a>` : ""}
       <details class="fixture-sources" data-keep-open="sources"${opened.has("sources") ? " open" : ""}><summary>출처</summary><div>${sourceLinks.join("")}</div></details></div>
   </div>`;
 }
 
-function renderMiniFixture(container, match, detail, roundData, auto, standings, { floating = false, loading = false } = {}) {
-  const mode = floating ? "PiP 오버레이" : "경기 미니 보기";
+function renderMiniFixture(container, match, detail, roundData, auto, standings, { inOverlay = false, loading = false } = {}) {
+  const mode = "경기 미니 보기";
   if (!match) {
     container.innerHTML = `<nav class="fixture-mini-nav"><strong>${mode}</strong><a href="./">경기 목록</a></nav>
       <p class="schedule-empty" role="status">${loading ? "경기 정보를 불러오는 중입니다." : "현재 공개 회차에서 이 경기를 찾을 수 없습니다."}</p>`;
@@ -126,14 +123,15 @@ function renderMiniFixture(container, match, detail, roundData, auto, standings,
   if (!container.querySelector(".fixture-analysis")) opened.add("context");
   const focusedPanel = owner.activeElement?.closest("[data-keep-open]")?.dataset.keepOpen;
   const [status, label] = matchStatus(match, Date.now());
-  owner.title = `${match.home} vs ${match.away} · ${mode}`;
-  container.innerHTML = `<nav class="fixture-mini-nav" aria-label="경기 탐색"><strong>${mode}</strong><a href="?fixture=${match.number}">경기 분석표</a></nav>
+  if (!inOverlay) owner.title = `${match.home} vs ${match.away} · ${mode}`;
+  const navigation = inOverlay ? "" : `<nav class="fixture-mini-nav" aria-label="경기 탐색"><strong>${mode}</strong><a href="?fixture=${match.number}">경기 분석표</a></nav>`;
+  container.innerHTML = `${navigation}
     <section class="fixture-mini-head">
       <p>${text(match.league)} · ${roundData.round}회차</p>
-      <h1>${text(match.home)} <span>${match.score ? match.score.join(" : ") : "vs"}</span> ${text(match.away)}</h1>
+      <h1${inOverlay ? ' tabindex="-1"' : ""}>${text(match.home)} <span>${match.score ? match.score.join(" : ") : "vs"}</span> ${text(match.away)}</h1>
       <div><time datetime="${text(match.startsAt)}">${snapshotLabel.format(new Date(match.startsAt))} KST</time><span class="fixture-status" data-status="${status}">${label}</span></div>
     </section>
-    ${quickAnalysis(match, detail, roundData, opened, auto, standings)}`;
+    ${quickAnalysis(match, detail, roundData, opened, auto, standings, inOverlay)}`;
   if (focusedPanel) {
     [...container.querySelectorAll("[data-keep-open]")].find(panel => panel.dataset.keepOpen === focusedPanel)
       ?.querySelector("summary")?.focus({ preventScroll:true });
@@ -144,7 +142,7 @@ function matchRow(match, detail, now, roundData, expanded, packet) {
   const opened = expanded.get(match.number);
   const [status, label] = matchStatus(match, now);
   const time = match.startsAt.slice(11, 16);
-  return `<div class="fixture-entry"><details class="fixture" data-status="${status}" data-number="${match.number}" name="fixture"${opened ? " open" : ""}>
+  return `<details class="fixture" data-status="${status}" data-number="${match.number}" name="fixture"${opened ? " open" : ""}>
     <summary class="fixture-line">
       <time datetime="${text(match.startsAt)}" class="fixture-time">${time}</time>
       <span class="fixture-league"><span class="sport-mark sport-${{축구:"football",야구:"baseball",농구:"basketball",배구:"volleyball"}[match.sport]}">${text(match.sport.slice(0,1))}</span><span>${text(match.league)}</span></span>
@@ -153,9 +151,7 @@ function matchRow(match, detail, now, roundData, expanded, packet) {
       <span class="fixture-expand"><span>분석표</span><i aria-hidden="true"></i></span>
     </summary>
     ${opened ? quickAnalysis(match, detail, roundData, opened, packet?.contexts?.[match.number], packet?.standingsByLeague?.[match.league]) : ""}
-  </details>
-  <a class="fixture-overlay-link" data-pip-fixture="${match.number}" href="${text(fixtureMiniHref(match.number, roundData))}" target="_blank" rel="noopener" aria-label="${text(match.home)} 대 ${text(match.away)} PiP 오버레이" title="PiP 오버레이">PiP</a>
-  </div>`;
+  </details>`;
 }
 
 function dateSections(matches, detailsByNumber, now, roundData, expanded, packet) {
@@ -167,7 +163,7 @@ function dateSections(matches, detailsByNumber, now, roundData, expanded, packet
   }
   return Array.from(grouped, ([date, list]) => `<section class="fixture-day">
     <h3 class="fixture-day-heading"><time datetime="${date}">${dateLabel.format(new Date(date + "T12:00:00+09:00"))}</time></h3>
-    <div class="fixture-column-labels" aria-hidden="true"><span>시작</span><span>종목 · 리그</span><span>홈팀 · 원정팀</span><span>상태</span><span></span><span class="fixture-overlay-heading">PiP 오버레이</span></div>
+    <div class="fixture-column-labels" aria-hidden="true"><span>시작</span><span>종목 · 리그</span><span>홈팀 · 원정팀</span><span>상태</span><span></span></div>
     ${list.map(match => matchRow(match, detailsByNumber[match.number], now, roundData, expanded, packet)).join("")}
   </section>`).join("");
 }
@@ -195,19 +191,22 @@ export function renderSchedule(main, briefings, params) {
   const requestedNumber = params.get("fixture");
   const fixtureNumber = /^\d{1,5}$/.test(requestedNumber ?? "") ? Number(requestedNumber) : null;
   const mini = params.get("view") === "mini" && fixtureNumber !== null;
+  const overlayRoute = params.get("view") === "overlay";
+  const compact = mini || overlayRoute;
   const pinnedRound = /^\d{6}$/.test(params.get("round") ?? "") ? Number(params.get("round")) : null;
   let view = fixtureNumber === null ? "schedule" : "all";
   let chosenDate = "";
   let limit = pageSize;
   let sport = sportNames.includes(params.get("sport")) ? params.get("sport") : "전체";
   main.classList.add("schedule-page");
-  if (mini) {
-    main.classList.add("fixture-mini");
-    document.body.classList.add("fixture-mini-body");
-  }
-  main.innerHTML = mini ? "" : `<section class="schedule-top">
-    <p class="schedule-label" id="round-label"></p>
-    <h1>경기 일정</h1>
+  if (compact) document.body.classList.add("fixture-mini-body");
+  if (mini) main.classList.add("fixture-mini");
+  if (overlayRoute) main.classList.add("overlay-route");
+  main.innerHTML = compact ? "" : `<section class="schedule-top">
+    <div class="schedule-topline">
+      <div><p class="schedule-label" id="round-label"></p><h1>경기 일정</h1></div>
+      <button type="button" class="overlay-launch" id="overlay-launch" aria-expanded="false">오버레이 실행</button>
+    </div>
     <p class="schedule-meta"><span id="round-count"></span> · 한국 시간 · <span id="round-updated" role="status"></span></p>
   </section>
   <div class="schedule-controls">
@@ -221,10 +220,11 @@ export function renderSchedule(main, briefings, params) {
   <div id="schedule-results"></div>
   <details class="block secondary-panel"><summary>일정과 결과 출처</summary><p class="muted">베트맨 공개 경기표를 1분마다 확인합니다. 출전 변수와 팀 기록은 각 출처의 발표 시점을 기준으로 제공합니다.</p><div id="schedule-origin"></div></details>`;
 
-  const results = mini ? main : main.querySelector("#schedule-results");
+  const results = compact ? main : main.querySelector("#schedule-results");
+  const launcher = main.querySelector("#overlay-launch");
   const search = main.querySelector("#schedule-search");
   if (search && fixtureNumber !== null) search.value = String(fixtureNumber);
-  attachTeamContext(results);
+  if (!overlayRoute) attachTeamContext(results);
   results.addEventListener("toggle", event => {
     const row = event.target;
     if (!row.matches?.(".fixture[open]") || row.querySelector(":scope > .fixture-analysis")) return;
@@ -241,7 +241,7 @@ export function renderSchedule(main, briefings, params) {
   const origin = main.querySelector("#schedule-origin");
 
   function updateMetadata(stale) {
-    if (mini) return;
+    if (compact) return;
     roundLabel.textContent = `프로토 승부식 ${roundData.round}회차`;
     countLabel.textContent = `${roundData.matches.length}경기`;
     updatedLabel.textContent = `${stale ? "마지막 확인" : "자동 갱신"} ${snapshotLabel.format(new Date(roundData.capturedAt))}`;
@@ -262,20 +262,33 @@ export function renderSchedule(main, briefings, params) {
     return match && briefings.find(game => roundData.briefingNumbers[game.id] === match.number);
   }
 
-  function updateMini(container, number, pinned, floating = false) {
+  function updateMini(container, number, pinned) {
     const match = pinned === null || pinned === officialRoundId(roundData)
       ? roundData.matches.find(item => item.number === number) : null;
     renderMiniFixture(container, match, detailFor(match), roundData, contextPacket?.contexts?.[number],
       contextPacket?.standingsByLeague?.[match?.league],
-      { floating, loading:waitingForOfficial });
+      { loading:waitingForOfficial });
   }
 
+  function displayOverlay(container,mode,initialMatch,close) {
+    attachTeamContext(container);
+    const panel = mountMatchOverlay(container,{mode,initialMatch,close,
+      renderMatch: (content,match) => renderMiniFixture(content,match,detailFor(match),roundData,
+        contextPacket?.contexts?.[match.number],contextPacket?.standingsByLeague?.[match.league],
+        {inOverlay:true})});
+    panel.update(roundData.matches,officialRoundId(roundData));
+    return panel;
+  }
+
+  if (overlayRoute) overlay = {panel:displayOverlay(main,"standalone",fixtureNumber)};
+
   function render(preserveExpansion = false) {
+    if (overlay && !overlay.window?.closed) overlay.panel.update(roundData.matches,officialRoundId(roundData));
+    if (overlayRoute) return;
     if (mini) {
       updateMini(main, fixtureNumber, pinnedRound);
       return;
     }
-    if (overlay && !overlay.window.closed) updateMini(overlay.content, overlay.number, overlay.round, true);
     updateDates();
     const expanded = new Map();
     if (preserveExpansion) {
@@ -324,43 +337,64 @@ export function renderSchedule(main, briefings, params) {
   });
   search?.addEventListener("input", () => { limit = pageSize; render(); });
   select?.addEventListener("change", () => { sport = select.selectedIndex === 0 ? "전체" : select.value; limit = pageSize; render(); });
-  results.addEventListener("click", async event => {
-    const link = event.target.closest("[data-pip-fixture]");
-    const pictureInPicture = window.documentPictureInPicture;
-    if (link && typeof pictureInPicture?.requestWindow === "function" &&
-        !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) {
-      event.preventDefault();
-      const number = Number(link.dataset.pipFixture);
-      const round = officialRoundId(roundData);
-      try {
-        const floating = await pictureInPicture.requestWindow({ width:420, height:640 });
-        const owner = floating.document;
-        owner.documentElement.lang = "ko";
-        owner.body.classList.add("fixture-mini-body");
-        const href = owner.createElement("base");
-        href.href = new URL("./", location.href);
-        href.target = "_blank";
-        const stylesheet = owner.createElement("link");
-        stylesheet.rel = "stylesheet";
-        stylesheet.href = new URL("./style.css", location.href);
-        owner.head.append(href, stylesheet);
-        const content = owner.createElement("main");
-        content.className = "wrap schedule-page fixture-mini";
-        owner.body.append(content);
-        attachTeamContext(content);
-        overlay = { window:floating, content, number, round };
-        floating.addEventListener("pagehide", () => {
-          if (overlay?.window === floating) overlay = null;
-        }, { once:true });
-        updateMini(content, number, round, true);
-      } catch {
-        // A rejected request can consume activation before a fallback popup can open.
-        const fallback = window.open(link.href, "_blank", "popup,width=420,height=640");
-        if (fallback) fallback.opener = null;
-        else location.assign(link.href);
-      }
+  launcher?.addEventListener("click", async () => {
+    if (overlay && !overlay.window?.closed) {
+      overlay.window?.focus();
+      overlay.panel.focus();
       return;
     }
+    const number = results.querySelector(".fixture[open]")?.dataset.number;
+    const initialMatch = number ? Number(number) : fixtureNumber;
+    function closeOverlay() {
+      if (!overlay) return;
+      const {window:floating,host} = overlay;
+      overlay = null;
+      floating?.close();
+      host?.remove();
+      launcher.setAttribute("aria-expanded","false");
+      launcher.focus({preventScroll:true});
+    }
+    const picture = window.documentPictureInPicture;
+    if (typeof picture?.requestWindow === "function") {
+      launcher.disabled = true;
+      let floating;
+      try {
+        floating = await picture.requestWindow({width:420,height:640});
+        const owner = floating.document;
+        owner.documentElement.lang = "ko";
+        owner.title = "경기 분석 · 매치인덱스";
+        owner.body.classList.add("fixture-mini-body","floating-overlay-body");
+        const base = owner.createElement("base");
+        base.href = new URL("./",location.href);
+        const stylesheet = owner.createElement("link");
+        stylesheet.rel = "stylesheet";
+        stylesheet.href = new URL("./style.css",location.href);
+        owner.head.append(base,stylesheet);
+        const host = owner.createElement("main");
+        host.className = "overlay-route";
+        owner.body.append(host);
+        overlay = {window:floating,panel:displayOverlay(host,"floating",initialMatch,closeOverlay)};
+        floating.addEventListener("pagehide",()=>{
+          if (overlay?.window === floating) closeOverlay();
+        },{once:true});
+      } catch {
+        floating?.close();
+        // Fall through to the overlay inside this page.
+      } finally {
+        launcher.disabled = false;
+      }
+    }
+    if (!overlay) {
+      const host = document.createElement("aside");
+      host.className = "overlay-dock";
+      document.body.append(host);
+      overlay = {host,panel:displayOverlay(host,"dock",initialMatch,closeOverlay)};
+    }
+    launcher.setAttribute("aria-expanded","true");
+    overlay.panel.focus();
+  });
+
+  results.addEventListener("click", event => {
     const button = event.target.closest(".schedule-more");
     if (!button) return;
     const showFinished = button.hasAttribute("data-show-finished");
@@ -371,7 +405,7 @@ export function renderSchedule(main, briefings, params) {
     results.querySelectorAll(".fixture > summary")[nextIndex]?.focus();
   });
   function viewIsHidden() {
-    return document.hidden && (!overlay || overlay.window.closed);
+    return document.hidden && (!overlay?.window || overlay.window.closed);
   }
 
   async function refreshContext() {

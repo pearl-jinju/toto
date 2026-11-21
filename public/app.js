@@ -187,33 +187,13 @@ function showBriefing(game) {
   document.body.classList.toggle("compact", mini);
   main.innerHTML = `<nav class="actions detail-nav" aria-label="브리핑 탐색">
     <a href="./?sport=${game.sport}">경기 목록</a>
-    ${mini ? `<a href="${matchUrl(game,false)}">전체 브리핑</a>` : '<button class="primary" id="overlay">미니 오버레이 열기</button>'}</nav>${briefing(game,mini)}`;
+    ${mini ? `<a href="${matchUrl(game,false)}">전체 브리핑</a>` : ""}</nav>${briefing(game,mini)}`;
   loadBriefingOutlook(main,game);
-  document.querySelector("#overlay")?.addEventListener("click", async () => {
-    const options = { width: 420, height: 640 };
-    try {
-      const overlay = await window.documentPictureInPicture.requestWindow(options);
-      overlay.document.documentElement.lang = "ko";
-      overlay.document.title = document.title;
-      const stylesheet = overlay.document.createElement("link");
-      stylesheet.rel = "stylesheet";
-      stylesheet.href = new URL("./style.css", location.href);
-      overlay.document.head.append(stylesheet);
-      overlay.document.body.className = "compact";
-      const content = overlay.document.createElement("main");
-      content.className = "wrap";
-      content.innerHTML = briefing(game,true);
-      overlay.document.body.append(content);
-      loadBriefingOutlook(content,game);
-    } catch {
-      window.open(matchUrl(game,true), "_blank", "popup,width=420,height=640,noopener");
-    }
-  });
 }
 
 if (params.get("view") === "history") renderHistoryPage(main,params);
-else if (selected) showBriefing(withOfficialStatus(selected));
+else if (selected && params.get("view") !== "overlay") showBriefing(withOfficialStatus(selected));
 else {
   renderSchedule(main, games, params);
-  if (!mini) main.insertAdjacentHTML("beforeend", patternLibrary());
+  if (!mini && params.get("view") !== "overlay") main.insertAdjacentHTML("beforeend", patternLibrary());
 }

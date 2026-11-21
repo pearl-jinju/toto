@@ -180,7 +180,11 @@ def build_outlook(fixture, matched_event, events, factors, source):
         basis += f" 팀별 예상은 홈 {home_estimate:.{precision}f}{unit} · 원정 {away_estimate:.{precision}f}{unit}."
     if market_under:
         basis += f" 베트맨 기준점 {line:g}{'점' if sport == '배구' and line >= 6 else unit}."
+    if probability is None or abs(probability - .5) < .025:
+        scoring_pose = "standing"
+    else:
+        scoring_pose = "resting" if probability > .5 else "running"
     return {
-        "kind": "model", "headline": headline, "basis": basis, "range": f"{low}–{high}{unit}",
+        "kind": "model", "pose": scoring_pose, "headline": headline, "basis": basis, "range": f"{low}–{high}{unit}",
         "weather": weather_note, "source": sources[0], "archived": fixture.get("status") == "finished",
     }

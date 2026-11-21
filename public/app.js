@@ -1,7 +1,8 @@
 import { snapshot, sources, games } from "./data.js";
 import { research } from "./research.js";
 import { publishedMatchInfo, renderSchedule, withOfficialStatus } from "./schedule.js";
-import { fetchAutomaticContext, renderOutlook } from "./auto-context.js";
+import { fetchAutomaticContext, renderOutlook, renderWeatherFacts } from "./auto-context.js";
+import { curatedWeatherVisual, weatherPanel } from "./match-visuals.js";
 
 const main = document.querySelector("#main");
 const categories = ["전체", "축구", "야구", "농구", "배구"];
@@ -97,21 +98,22 @@ function weatherCard(game) {
   const [conditions, details, forecastRef] = game.weather;
   const assessment = game.weatherAssessment;
   if (!assessment) {
-    return `<section class="block"><h2>경기장 환경</h2><strong>${conditions}</strong><p>${details}</p>${source(forecastRef)}</section>`;
+    return `<section class="block weather-card"><h2>경기장 환경</h2>
+      <div data-brief-weather>${weatherPanel(curatedWeatherVisual(game))}<strong>${conditions}</strong><p>${details}</p>${source(forecastRef)}</div></section>`;
   }
 
-  const { headline, tone, readings, basis, impact, watch, refs } = assessment;
+  const { readings, basis, impact, watch, refs } = assessment;
   const links = [forecastRef, ...refs].filter(Boolean);
   return `<section class="block weather-card">
     <h2>경기장 환경</h2>
-    <p class="weather-headline${tone === "check" ? " weather-headline-check" : ""}">${headline}</p>
-    ${factTiles(readings)}
-    <p class="weather-basis muted">${basis}</p>
-    <p class="weather-explanation">${impact}</p>
-    <details class="weather-evidence"><summary>중계에서 볼 점 · 출처</summary>
-      <p>${watch}</p><p class="muted">${details}</p>
-      ${links.map(source).join("")}
-    </details>
+    <div data-brief-weather>
+      ${weatherPanel({...curatedWeatherVisual(game),readings:readings.map(([label,value])=>({label,value}))})}
+      <p class="weather-explanation">${impact}</p>
+      <details class="weather-evidence"><summary>중계에서 볼 점 · 출처</summary>
+        <p>${watch}</p><p class="muted">${basis} · ${details}</p>
+        ${links.map(source).join("")}
+      </details>
+    </div>
   </section>`;
 }
 
@@ -166,8 +168,14 @@ function loadBriefingOutlook(container,game) {
     if (!target.isConnected || remaining-- <= 0) return;
     try {
       const packet = await fetchAutomaticContext(roundId);
-      const outlook = packet?.contexts?.[number]?.outlook;
-      if (outlook) { target.innerHTML = renderOutlook(outlook); return; }
+      const context = packet?.contexts?.[number];
+      if (context) {
+        if (context.outlook) target.innerHTML = renderOutlook(context.outlook);
+        const weather = renderWeatherFacts(context);
+        const weatherSlot = container.querySelector("[data-brief-weather]");
+        if (weatherSlot && weather) weatherSlot.innerHTML = weather;
+        return;
+      }
     } catch {}
     if (remaining) setTimeout(load,20_000);
   }

@@ -11,6 +11,8 @@ from threading import Lock
 from time import monotonic
 from urllib.request import Request, urlopen
 
+from scripts.player_names_ko import player_name_ko
+
 
 RELEASE = "https://github.com/sportsdataverse/sportsdataverse-data/releases/download/espn_nba_schedules"
 SOURCE_NAME = "SportsDataverse · NBA 일정 및 결과"
@@ -46,6 +48,18 @@ TEAM_NAMES = {
     "TOR": "토론토 랩터스",
     "UTAH": "유타 재즈",
     "WSH": "워싱턴 위저즈",
+}
+_REPORT_TEAM_NAMES = {
+    "Atlanta Hawks": "ATL", "Boston Celtics": "BOS", "Brooklyn Nets": "BKN",
+    "Charlotte Hornets": "CHA", "Chicago Bulls": "CHI", "Cleveland Cavaliers": "CLE",
+    "Dallas Mavericks": "DAL", "Denver Nuggets": "DEN", "Detroit Pistons": "DET",
+    "Golden State Warriors": "GS", "Houston Rockets": "HOU", "Indiana Pacers": "IND",
+    "LA Clippers": "LAC", "Los Angeles Clippers": "LAC", "Los Angeles Lakers": "LAL",
+    "LA Lakers": "LAL", "Memphis Grizzlies": "MEM", "Miami Heat": "MIA", "Milwaukee Bucks": "MIL",
+    "Minnesota Timberwolves": "MIN", "New Orleans Pelicans": "NO", "New York Knicks": "NY",
+    "Oklahoma City Thunder": "OKC", "Orlando Magic": "ORL", "Philadelphia 76ers": "PHI",
+    "Phoenix Suns": "PHX", "Portland Trail Blazers": "POR", "Sacramento Kings": "SAC",
+    "San Antonio Spurs": "SA", "Toronto Raptors": "TOR", "Utah Jazz": "UTAH", "Washington Wizards": "WSH",
 }
 _CACHE = {}
 _CACHE_LOCK = Lock()
@@ -240,12 +254,15 @@ def _injury_factors(event, reports, now):
         )
         if not latest:
             continue
-        value = " · ".join(f"{player} {_STATUS[status]}" for player, status in latest[:3])
+        shown = [(player, player_name_ko(player), status) for player, status in latest[:3]]
+        value = " · ".join(f"{display} {_STATUS[status]}" for _, display, status in shown)
+        original_names = [player for player, display, _ in shown if player != display]
         if len(latest) > 3:
             value += f" 외 {len(latest)-3}명"
         factors.append({
             "category": "players",
-            "title": f"{team} 출전 보고",
+            "title": f"{TEAM_NAMES.get(_REPORT_TEAM_NAMES.get(team), team)} 출전 보고",
+            **({"originalNames": original_names} if original_names else {}),
             "value": value,
             "text": "경기 전에 제출된 NBA 출전 상태입니다. 보고 시각 이후 선발은 바뀔 수 있습니다.",
             "date": timestamp.replace(tzinfo=local.tzinfo).isoformat(),
@@ -275,9 +292,11 @@ def _leader_factor(event, team, team_id, previous, boxes):
     if not candidates:
         return None
     name, count, points, assists = max(candidates, key=lambda candidate: (candidate[2], candidate[1], candidate[3]))
+    display_name = player_name_ko(name)
     return {
         "category": "players",
-        "title": f"{team} · {name}",
+        "title": f"{team} · {display_name}",
+        **({"originalName": name} if name != display_name else {}),
         "value": f"평균 {points:.1f}득점 · {assists:.1f}도움",
         "text": f"이 경기 전 팀의 최근 {len(recent)}경기 중 실제 출전한 {count}경기 기준입니다.",
         "date": recent[0]["start"],

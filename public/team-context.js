@@ -1,6 +1,7 @@
 import { fixtureContext } from "./fixture-context.js";
 import { sources } from "./data.js";
-import { automaticCards, renderAutomaticFactors, renderOutlook } from "./auto-context.js";
+import { automaticCards, renderAutomaticFactors, renderOutlook, weatherFacts } from "./auto-context.js";
+import { curatedWeatherVisual, mascotArt, weatherHint, weatherPanel } from "./match-visuals.js";
 
 const aliases = {
   "맨체스터시티":"Manchester City FC", "맨체스터유나이티드":"Manchester United FC",
@@ -40,7 +41,7 @@ function link(pair) {
 
 function card(id, title, icon, hint, body, opened) {
   return `<details class="context-card" data-context-card="${id}" data-keep-open="${id}"${opened.has(id) ? " open" : ""}>
-    <summary><span class="context-icon" aria-hidden="true">${icon}</span><span><strong>${title}</strong><small>${escape(hint)}</small></span><span class="context-plus" aria-hidden="true"></span></summary>
+    <summary><span class="context-icon${id === "weather" ? " context-icon-weather" : ""}" aria-hidden="true">${id === "weather" ? mascotArt("standing",true) : icon}</span><span><strong>${title}</strong><small>${escape(hint)}</small></span><span class="context-plus" aria-hidden="true"></span></summary>
     <div class="context-body">${body}</div>
   </details>`;
 }
@@ -132,10 +133,12 @@ export function teamContextPanels(match, round, {detail, editorial, auto, opened
   const newsRows = [...(extra.news ?? []),...(detail?.events?.map(([date, category, title, body, ref])=>[date,title,body,sources[ref]]) ?? [])];
   const cards = [
     (venue || extra.onSite) ? card("venue","구장 특징","◎","잔디·시설·당일 조건",stadium(venue,extra.onSite)+renderAutomaticFactors(auto,"venue"),opened) : "",
-    weather && !auto?.factors?.some(factor => factor.category === "weather" && factor.forecastTag) ? card("weather","경기 환경","☀","체감 조건과 경기 영향",
-      `<h4>${escape(weather.headline)}</h4><ul class="context-chips">${weather.readings.map(([label,value])=>`<li>${escape(label)} ${escape(value)}</li>`).join("")}</ul>
-      <p>${escape(weather.impact)}</p><p><strong>중계에서 볼 점</strong> ${escape(weather.watch)}</p>
-      <p class="context-basis">${escape(weather.basis)}</p>${link(sources[detail.weather?.[2]])}${weather.refs.map(ref=>link(sources[ref])).join("")}`,opened) : "",
+    weather && !weatherFacts(auto).length ? card("weather","경기 환경","",weatherHint(curatedWeatherVisual(detail)),
+      `${weatherPanel({...curatedWeatherVisual(detail),readings:weather.readings.map(([label,value])=>({label,value}))})}
+      <p>${escape(weather.impact)}</p>
+      <details class="weather-evidence"><summary>중계에서 볼 점 · 출처</summary>
+      <p>${escape(weather.watch)}</p><p class="context-basis">${escape(weather.basis)}</p>
+      ${link(sources[detail.weather?.[2]])}${weather.refs.map(ref=>link(sources[ref])).join("")}</details>`,opened) : "",
     (playerRows.length || editorial?.roster) ? card("players","주요 선수","◇","최근 활약과 출전 상태",
       (editorial?.roster ? `<section class="context-item"><h4>출전 변수</h4><p>${escape(editorial.roster[0])}</p>${link(["NBA 부상 보고서 · 11/21 23:15 KST",editorial.roster[1]])}</section>` : "")+genericItems(playerRows,"player")+renderAutomaticFactors(auto,"players"),opened) : "",
     newsRows.length ? card("news","주요 뉴스","≡","경기에 관련된 발표",genericItems(newsRows,"news")+renderAutomaticFactors(auto,"news"),opened) : "",

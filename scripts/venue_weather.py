@@ -245,12 +245,13 @@ def numeric(value):
     return isinstance(value, (int, float)) and not isinstance(value, bool) and isfinite(value)
 
 
-def conditions(sport, temp, wind, rain, symbol):
+def weather_flags(temp, wind, rain, symbol):
     wet = (numeric(rain) and rain > 0) or any(word in symbol for word in ("rain", "sleet", "snow"))
-    fog = "fog" in symbol
-    windy = numeric(wind) and wind >= 8
-    freezing = numeric(temp) and temp <= 0
-    hot = numeric(temp) and temp >= 29
+    return wet, "fog" in symbol, numeric(wind) and wind >= 8, numeric(temp) and temp <= 0, numeric(temp) and temp >= 29
+
+
+def conditions(sport, temp, wind, rain, symbol):
+    wet, fog, windy, freezing, hot = weather_flags(temp, wind, rain, symbol)
     if sport == "야구":
         if fog and freezing:
             return "안개와 영하 · 외야 시야와 발밑 확인", "뜬공을 읽기 어렵고 실제로 얼어붙은 지면에서는 발이 밀릴 수 있습니다. 두 조건만으로 득점 방향은 알기 어렵습니다."
@@ -283,6 +284,51 @@ def conditions(sport, temp, wind, rain, symbol):
     if not (numeric(temp) and numeric(wind) and numeric(rain)):
         return "도시 예보 항목 일부 확인", "표시된 수치를 참고해 경기 시간대 조건을 확인하세요."
     return "도시 예보에서 두드러진 날씨 신호 없음", "팀의 선발과 경기 스타일을 먼저 보세요. 구장 잔디와 바람은 현장에서 달라질 수 있습니다."
+
+
+def weather_visual(sport, temp, wind, rain, symbol, has_roof):
+    readings = [
+        {"label": label, "value": value}
+        for label, value in (
+            ("기온", f"{temp:g}°C" if numeric(temp) else None),
+            ("바람", f"{wind * 3.6:.0f}km/h" if numeric(wind) else None),
+            ("시간당 강수량", f"{rain:g}mm" if numeric(rain) else None),
+        )
+        if value is not None
+    ]
+    if has_roof:
+        return {"condition": "roof", "impact": "unknown", "label": "지붕 개폐 미확인", "readings": readings}
+
+    wet, fog, windy, freezing, hot = weather_flags(temp, wind, rain, symbol)
+    if sport == "야구":
+        candidates = (("fog", fog), ("rain", wet), ("wind", windy), ("frost", freezing), ("heat", hot))
+    else:
+        candidates = (("fog", fog), ("frost", freezing), ("rain", wet), ("wind", windy), ("heat", hot))
+    condition = next((name for name, active in candidates if active), None)
+    severe = (
+        "thunder" in symbol
+        or "heavyrain" in symbol
+        or (numeric(rain) and rain >= 10)
+        or (numeric(wind) and wind >= 12)
+    )
+    if condition is None:
+        condition = "calm" if len(readings) == 3 else "unknown"
+        impact = "low" if condition == "calm" else "unknown"
+    else:
+        impact = "high" if severe else "watch"
+    labels = {
+        "calm": "뚜렷한 날씨 변수 없음",
+        "rain": "비 예보",
+        "wind": "바람 강함",
+        "fog": "안개 예보",
+        "frost": "영하권",
+        "heat": "더운 날씨",
+        "unknown": "예보 자료 부족",
+    }
+    label = labels[condition]
+    if condition == "fog" and freezing:
+        label = "안개 · 영하권"
+    return {"condition": condition, "impact": impact, "label": label, "readings": readings}
 
 
 def make_weather(sport, city_data, start, data, has_roof):
@@ -339,6 +385,7 @@ def make_weather(sport, city_data, start, data, has_roof):
             tag = "heat"
     return {
         "forecastTag": tag,
+        "visual": weather_visual(sport, temp, wind, rain, symbol, has_roof),
         "category": "weather", "title": f"{city} 도심 경기 시간대 예보", "value": value,
         "text": f"{tip} {model_hour} · {' · '.join(measures)}{model}. 도심 예보입니다.",
         "source": ["MET Norway · Locationforecast (CC BY 4.0)", forecast_url(lat, lon)], "date": hour.isoformat(),
@@ -363,13 +410,13 @@ def enrich_fixtures(fixtures, *, round_source=None):
         if indoor:
             action = ("실외 바람과 비는 코트에 직접 닿지 않습니다. 후반 슛이 짧아지거나 수비 복귀가 늦는지 보려면 직전 경기와 휴식 간격을 함께 보세요."
                 if sport == "농구" else "실외 바람이 서브 궤도에 직접 영향을 주지 않습니다. 서브 리시브가 흔들리는지와 공격수가 높은 공을 처리하는지 보세요.")
-            factors.append({"category":"weather","title":"실내 경기 환경","value":"바람·비의 직접 영향이 작은 실내 코트","text":action,"source":list(indoor)})
+            factors.append({"category":"weather","title":"실내 경기 환경","value":"바람·비의 직접 영향이 작은 실내 코트","text":action,"source":list(indoor),"visual":{"condition":"indoor","impact":"low","label":"실내 코트"}})
             continue
         if key in _FIXED_DOME:
-            factors.append({"category":"weather","title":"돔 구장 환경","value":"강수와 바람의 직접 영향이 작은 돔","text":"외부 비·바람 대신 실제 실내 온도와 경기장 같은 조건에서의 선수 기록을 확인할 만합니다.","source":list(_FIXED_DOME[key])})
+            factors.append({"category":"weather","title":"돔 구장 환경","value":"강수와 바람의 직접 영향이 작은 돔","text":"외부 비·바람 대신 실제 실내 온도와 경기장 같은 조건에서의 선수 기록을 확인할 만합니다.","source":list(_FIXED_DOME[key]),"visual":{"condition":"indoor","impact":"low","label":"실내 돔"}})
             continue
         if key in _ROOFS:
-            factors.append({"category":"venue","title":"경기장 지붕","value":"개폐식 지붕","text":"지붕 개폐에 따라 바람과 비의 영향이 달라집니다. 이 경기의 개폐 상태는 공지에서 확인해야 합니다.","source":list(_ROOFS[key])})
+            factors.append({"category":"venue","title":"경기장 지붕","value":"개폐식 지붕","text":"지붕 개폐에 따라 바람과 비의 영향이 달라집니다. 이 경기의 개폐 상태는 공지에서 확인해야 합니다.","source":list(_ROOFS[key]),"visual":{"condition":"roof","impact":"unknown","label":"지붕 개폐 미확인"}})
         city_data = _CITIES.get(key)
         if not city_data:
             continue

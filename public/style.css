@@ -228,3 +228,40 @@ details[open] > summary .context-plus::after {transform:none}
 .context-card[data-context-card=scoring] {--card-accent:#9ef1c9}
 .context-card[data-context-card=check] {--card-accent:#a9bdcc}
 .context-card[data-context-card=schedule] {--card-accent:#edd39b}
+
+.outlook-box {--tone:#91dccc;--glow:#193b38;background:linear-gradient(117deg,var(--glow),#101e2a 78%);border-color:color-mix(in srgb,var(--tone) 36%,#273a4d);border-left-color:var(--tone)}
+.outlook-box[data-pose=running] {--tone:#ffd781;--glow:#3a2c22}
+.outlook-box[data-pose=resting] {--tone:#b8ccff;--glow:#242c4c}
+.outlook-box .outlook-label {color:var(--tone)}
+.outlook-visual,.weather-visual {display:grid;grid-template-columns:108px minmax(0,1fr);gap:12px;align-items:center}
+.outlook-visual {min-height:99px}
+.outlook-main {min-width:0}
+.mascot-art {position:relative;display:block;isolation:isolate;width:100%;aspect-ratio:1;max-height:115px}
+.mascot-art img {display:block;width:100%;height:100%;object-fit:contain}
+.mascot-art::after {position:absolute;inset:0;pointer-events:none;mask:var(--mascot-image) center/contain no-repeat;mix-blend-mode:screen}
+.mascot-art[data-pose=running]::after {content:"";background:radial-gradient(ellipse 39% 38% at 35% 35%,#ffd74dcc,transparent 83%)}
+.mascot-art[data-pose=resting]::after {content:"";background:radial-gradient(ellipse 37% 42% at 51% 41%,#8ccaffbb,transparent 78%)}
+.outlook-box>.outlook-basis {margin-block:7px}
+.context-icon-weather {overflow:hidden}
+.mascot-icon {width:100%;height:100%;object-fit:contain}
+.weather-visual {--weather-tone:#b4c1d2;grid-template-columns:78px minmax(0,1fr);gap:11px;padding:8px 10px;margin-bottom:9px;border:1px solid #385065;border-radius:10px;background:#101f2c}
+.weather-visual[data-impact="1"] {--weather-tone:#97f0c8;border-color:#315a55}
+.weather-visual[data-impact="2"] {--weather-tone:#ffda93;border-color:#67543d}
+.weather-visual[data-impact="3"] {--weather-tone:#ffac9c;border-color:#80504c}
+.weather-visual-label {display:block;font-size:.9rem;color:var(--muted);line-height:1.35}
+.weather-impact {display:flex;align-items:center;flex-wrap:wrap;gap:3px 10px;color:var(--weather-tone);font-size:1.03rem;line-height:1.45}
+.weather-impact-bars {display:inline-grid;grid-template-columns:repeat(3,14px);gap:3px;align-items:end}
+.weather-impact-bars i {height:6px;border:1px solid #718299;border-radius:3px}
+.weather-impact-bars i:nth-child(2) {height:10px}
+.weather-impact-bars i:nth-child(3) {height:14px}
+.weather-impact-bars .lit {background:var(--weather-tone);border-color:var(--weather-tone)}
+.weather-visual[data-impact="0"] .weather-impact-bars i {border-style:dashed}
+.weather-observations {display:flex;flex-wrap:wrap;gap:3px 11px;margin:5px 0 0;font-size:.81rem}
+.weather-observations div {display:flex;align-items:baseline;gap:4px}
+.weather-observations dd {font-weight:680}
+@media(max-width:460px) {
+  .outlook-box {padding:9px}
+  .outlook-visual {grid-template-columns:72px minmax(0,1fr);min-height:72px;gap:8px}
+  .outlook-line {font-size:1rem}
+  .weather-visual {grid-template-columns:55px minmax(0,1fr);gap:8px;padding:7px}
+}

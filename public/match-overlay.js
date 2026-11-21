@@ -32,7 +32,10 @@ export function mountMatchOverlay(container, {close, resize, renderMatch, mode, 
       </div>
     </div>
     <div class="overlay-picker">
-      <div class="overlay-filter-bar">
+      <button type="button" class="overlay-filter-toggle" aria-controls="overlay-refinement" aria-expanded="false">
+        <span>검색·날짜</span><small class="overlay-filter-date"></small>
+      </button>
+      <div class="overlay-filter-bar" id="overlay-refinement">
         <div class="overlay-filters">
           <label><span class="sr-only">경기 검색</span><input type="search" placeholder="팀 · 리그 · 경기번호"></label>
           <label><span class="sr-only">종목 선택</span><select>${sports.map(sport=>`<option value="${sport}">${sport === "전체" ? "전체 종목" : sport}</option>`).join("")}</select></label>
@@ -53,6 +56,8 @@ export function mountMatchOverlay(container, {close, resize, renderMatch, mode, 
   const back = panel.querySelector(".overlay-back");
   const heading = panel.querySelector(".overlay-header strong");
   const sizing = panel.querySelector(".overlay-size");
+  const filterToggle = panel.querySelector(".overlay-filter-toggle");
+  const filterDate = panel.querySelector(".overlay-filter-date");
   const detail = panel.querySelector(".overlay-detail");
   let matches = [];
   let active = initialMatch ?? null;
@@ -60,9 +65,18 @@ export function mountMatchOverlay(container, {close, resize, renderMatch, mode, 
   let listMarkup = null;
   let datesSignature = "";
   let chosenDate = koreaDateKey();
-  const dateRoller = mountDateRoller(panel.querySelector(".overlay-dates"),date=>{
+  const datePanel = panel.querySelector(".overlay-dates");
+  const updateFilterDate = () => {
+    filterDate.textContent = datePanel.querySelector("[role=slider]").getAttribute("aria-valuetext") ?? "";
+  };
+  const dateRoller = mountDateRoller(datePanel,date=>{
     chosenDate = date;
+    updateFilterDate();
     results();
+  });
+  filterToggle.addEventListener("click",()=>{
+    const expanded = picker.classList.toggle("filters-open");
+    filterToggle.setAttribute("aria-expanded",String(expanded));
   });
 
   function results() {
@@ -166,6 +180,7 @@ export function mountMatchOverlay(container, {close, resize, renderMatch, mode, 
         datesSignature = signature;
         if (chosenDate && !dates.includes(chosenDate)) chosenDate = today;
         dateRoller.update(dates,chosenDate);
+        updateFilterDate();
       }
       if (activeRound != null && activeRound !== round) {
         active = null;

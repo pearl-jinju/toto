@@ -2,6 +2,8 @@ from datetime import timedelta
 from math import exp, floor, sqrt
 from statistics import mean, pstdev, NormalDist
 
+from scripts.result_outlook import build_result_projection
+
 from scripts.fixture_matching import (
     KST, completed_history, display_name, known_source, matchup_history, pair, score_of, team_matches, timestamp,
 )
@@ -156,7 +158,14 @@ def build_outlook(fixture, matched_event, events, factors, source, verified=()):
                 for team in (home, away)]
     usable_market = total if sport != "배구" or (line is not None and line < 6) else None
     if min(map(len, selected)) < 3:
-        return market_context(fixture, source, total, "점" if sport == "배구" else unit)
+        market = market_context(fixture, source, total, "점" if sport == "배구" else unit)
+        result = build_result_projection(fixture, market_source=source)
+        if not result:
+            return market
+        return {
+            **(market or {"kind": "result", "archived": fixture.get("status") == "finished"}),
+            "result": result,
+        }
     league = [row for row in history if row[0] >= now - timedelta(days=180)]
     prior = tuple(mean(row[3][i] for row in league) for i in range(2)) if len(league) >= 12 else None
     if prior is None:
@@ -227,7 +236,9 @@ def build_outlook(fixture, matched_event, events, factors, source, verified=()):
         scoring_pose = "standing"
     else:
         scoring_pose = "resting" if probability > .5 else "running"
+    result = build_result_projection(fixture, home_estimate, away_estimate, selected, league, source)
     return {
+        **({"result": result} if result else {}),
         "kind": "model", "pose": scoring_pose, "headline": headline, "basis": basis, "range": f"{low}–{high}{unit}",
         "flow": match_flow(fixture, unit, midpoint, home_estimate, away_estimate),
         "weather": weather_note, "source": sources[0], "archived": fixture.get("status") == "finished",

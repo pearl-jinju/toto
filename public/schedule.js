@@ -6,7 +6,7 @@ import { defaultOverlaySize, mountMatchOverlay } from "./match-overlay.js";
 import { fixtureDateKeys, koreaDateKey, mountDateRoller } from "./date-roller.js";
 import { mascotArt } from "./match-visuals.js";
 import { hideBrokenTeamSymbols, teamLabel, teamSymbolSources } from "./team-symbols.js";
-import { mountAndroidOverlayChoice } from "./android-overlay-choice.js";
+import { androidOverlayIntent, mountAndroidOverlayChoice } from "./android-overlay-choice.js";
 
 const publishedRound = {
   ...roundSnapshot,
@@ -206,6 +206,7 @@ export function renderSchedule(main, briefings, params) {
   const picture = window.documentPictureInPicture;
   const canFloat = typeof picture?.requestWindow === "function";
   const isAndroid = navigator.userAgentData?.platform === "Android" || /\bAndroid\b/.test(navigator.userAgent);
+  const launchesAndroid = isAndroid && !canFloat;
   main.classList.add("schedule-page");
   if (compact) document.body.classList.add("fixture-mini-body");
   if (mini) main.classList.add("fixture-mini");
@@ -215,7 +216,9 @@ export function renderSchedule(main, briefings, params) {
       <div class="schedule-copy">
         <h1>매치인덱스</h1>
         <p class="schedule-subtitle">경기 흐름과 주요 변수를 한눈에</p>
-        <button type="button" class="overlay-launch" id="overlay-launch" aria-expanded="false">오버레이로 보기</button>
+        ${launchesAndroid
+          ? `<a class="overlay-launch" id="overlay-launch" href="${text(androidOverlayIntent(location))}">오버레이로 보기</a>`
+          : '<button type="button" class="overlay-launch" id="overlay-launch" aria-expanded="false">오버레이로 보기</button>'}
       </div>
       <div class="schedule-mascot" aria-hidden="true">${mascotArt("perched",false,{eager:true})}</div>
     </div>
@@ -416,9 +419,9 @@ export function renderSchedule(main, briefings, params) {
     overlay.panel.focus();
   }
 
-  const androidChoice = launcher && isAndroid && !canFloat
+  const androidChoice = launcher && launchesAndroid
     ? mountAndroidOverlayChoice(main,{openWeb:openOverlay}) : null;
-  launcher?.addEventListener("click",()=>androidChoice ? androidChoice.open() : openOverlay());
+  if (!androidChoice) launcher?.addEventListener("click",openOverlay);
   if (androidChoice && params.get("overlay") === "android") androidChoice.open();
 
   results.addEventListener("click", event => {

@@ -459,6 +459,7 @@ details[open] > summary .context-plus::after {transform:none}
 .overlay-launch::before {content:"";width:17px;height:12px;border:1px solid currentColor;border-radius:3px;background:linear-gradient(currentColor,currentColor) right 2px bottom 2px/6px 4px no-repeat}
 .overlay-launch:hover {background:#21483e}
 .overlay-launch:disabled {opacity:.68}
+a.overlay-launch {text-decoration:none}
 
 .overlay-dock {
   --overlay-edge:16px;--overlay-bottom:max(var(--overlay-edge),env(safe-area-inset-bottom));
@@ -467,7 +468,7 @@ details[open] > summary .context-plus::after {transform:none}
   height:min(var(--overlay-height),calc(100dvh - var(--overlay-edge) - var(--overlay-bottom)));
 }
 .overlay-route {width:100%;height:100dvh;padding:0}
-.match-overlay {container-type:inline-size;height:100%;min-height:0;display:flex;flex-direction:column;overflow:hidden;background:#101e2b;color:var(--ink)}
+.match-overlay {container-type:size;height:100%;min-height:0;display:flex;flex-direction:column;overflow:hidden;background:#101e2b;color:var(--ink)}
 .match-overlay [hidden] {display:none}
 .overlay-dock .match-overlay {border:1px solid #3c6971;border-radius:15px;box-shadow:0 12px 32px #0009}
 .overlay-header {flex:none;min-height:52px;display:flex;align-items:center;justify-content:space-between;gap:6px;padding:3px 10px 3px 13px;border-bottom:1px solid var(--line);background:#142936}
@@ -546,3 +547,40 @@ details[open] > summary .context-plus::after {transform:none}
 .outlook-evidence>summary {width:fit-content;padding:4px 0;font-size:.85rem}
 .outlook-evidence .context-body {padding:8px 0 0}
 .outlook-evidence .outlook-basis strong {margin-inline-end:4px}
+.overlay-filter-toggle {display:none}
+@container(max-height:350px){
+  .overlay-filter-toggle {display:flex;align-items:center;justify-content:space-between;gap:4px 8px;min-width:0;min-height:44px;width:100%;padding:5px 10px;border:0;border-bottom:1px solid var(--line);border-radius:0;background:#132435;color:var(--ink);font-size:.79rem;text-align:left}
+  .overlay-filter-toggle small {font-size:.72rem;color:var(--muted);text-align:right}
+  .overlay-filter-bar {position:static}
+  .overlay-picker:not(.filters-open) .overlay-filter-bar {display:none}
+}
+.result-outlook {margin:0 0 9px;padding:9px;border:1px solid #405870;border-radius:8px;background:#132437}
+.result-outlook-label {display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 7px;margin:0;font-size:.81rem;color:#d5e7fe}
+.result-outlook-label span {font-size:.71rem;color:var(--muted)}
+.result-outlook-headline {margin:3px 0 7px;font-size:.97rem;font-weight:750}
+.result-outcomes {display:flex;gap:5px;margin:0;padding:0;list-style:none}
+.result-outcomes li {flex:1;min-width:0;display:grid;gap:1px;margin:0;padding:3px 5px;border-radius:6px;background:#203247;font-size:.7rem;text-align:center}
+.result-outcomes li b {font-size:1rem;font-variant-numeric:tabular-nums}
+.result-outcomes [data-side=home] b {color:#ffe2a6}
+.result-outcomes [data-side=away] b {color:#c2daff}
+@media(max-width:640px){
+  .fixture-teams {display:grid;grid-template-columns:minmax(0,1fr);justify-items:center;row-gap:2px;text-align:center}
+  .fixture-teams .team-label,.fixture-teams .team-label:first-child {justify-content:center;text-align:center;line-height:1.25}
+  .fixture-teams .fixture-versus {line-height:1.1}
+  .fixture-line .fixture-status {align-self:start}
+}
+@container(max-width:420px){
+  .overlay-match-teams,.overlay-detail .fixture-mini-head h1 {
+    display:grid;grid-template-columns:minmax(0,1fr);justify-items:center;gap:2px;width:100%;text-align:center;
+  }
+  .overlay-match-teams .team-label,.overlay-detail .fixture-mini-head h1 .team-label {justify-content:center;line-height:1.25}
+  .overlay-detail .fixture-mini-head h1 .mini-versus {font-size:.75em}
+}
+@container(max-height:210px){
+  .overlay-header {min-height:44px;padding-block:0}
+  .overlay-list button {padding-block:3px;gap:1px}
+  .overlay-match-meta {font-size:.66rem;line-height:1.1}
+  .overlay-match-teams {gap:0;line-height:1.1;font-size:.79rem}
+  .overlay-match-teams .team-symbol {width:14px;height:14px}
+  .overlay-match-teams .overlay-score {line-height:1;font-size:.68rem}
+}

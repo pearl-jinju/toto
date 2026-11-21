@@ -210,27 +210,44 @@ export async function fetchAutomaticContext(roundId) {
   return data;
 }
 
+function renderResult(result, archived) {
+  const names = {home:"홈승",draw:"무승부",away:"원정승"};
+  const outcomes = (result?.outcomes ?? []).filter(({side,percent})=>Object.hasOwn(names,side) &&
+    Number.isInteger(percent) && percent >= 0 && percent <= 100);
+  if (outcomes.length < 2) return "";
+  return `<section class="result-outlook" aria-label="승부 전망">
+    <p class="result-outlook-label"><strong>승부 전망</strong> <span>${escape(result.label)}${archived ? " · 경기 전 기록 기준" : ""}</span></p>
+    <p class="result-outlook-headline">${escape(result.headline)}</p>
+    <ul class="result-outcomes">
+      ${outcomes.map(({side,percent})=>`<li data-side="${side}"><span>${names[side]}</span><b>${percent}%</b></li>`).join("")}
+    </ul>
+  </section>`;
+}
+
 export function renderOutlook(outlook, cancelled = false, historyHref = "", {angle, notes = [], extraEvidence = "", openEvidence = false} = {}) {
   if (cancelled) return "";
   const pose = scoringPose(outlook);
   const label = outlook?.kind === "market" ? "베트맨 배당 참고" : "경기 예상";
   const headline = outlook?.headline ?? "현재 확인된 자료로는 득점 전망을 내기 어렵습니다";
-  const credits = sourceCredits([angle?.source,outlook?.source,...(outlook?.evidence?.sources ?? [])]);
+  const result = outlook?.result;
+  const credits = sourceCredits([angle?.source,result?.source,outlook?.source,...(outlook?.evidence?.sources ?? [])]);
   const evidence = [
+    result?.basis ? `<p class="outlook-basis"><strong>승부 전망</strong> ${escape(result.basis)}</p>` : "",
     angle?.basis ? `<p class="outlook-basis"><strong>${escape(angle.label)}</strong> ${escape(angle.basis)}</p>` : "",
     outlook?.basis ? `<p class="outlook-basis">${escape(outlook.basis)}</p>` : "",
     outlook?.weather ? `<p class="outlook-basis"><strong>날씨 변수</strong> ${escape(outlook.weather)}</p>` : "",
     ...notes.map(([title,body,source])=>`<p class="outlook-basis"><strong>${escape(title)}</strong> ${escape(body)} ${sourceLink(source)}</p>`)
   ].join("");
   return `<section class="outlook-box" data-pose="${pose}">
-    <div class="outlook-visual">
+    ${renderResult(result,outlook?.archived)}
+    ${outlook?.kind !== "result" ? `<div class="outlook-visual">
       ${mascotFigure(scoringWord(outlook,pose),pose)}
       <div class="outlook-main">
         <p class="outlook-label">${label}${outlook?.archived ? " · 경기 전 기록 기준" : ""}</p>
         <p class="outlook-line">${escape(headline)}</p>
         ${outlook?.range ? `<p class="outlook-range">예상 범위 ${escape(outlook.range)}</p>` : ""}
       </div>
-    </div>
+    </div>` : ""}
     ${angle?.summary ? `<p class="outlook-angle"><span>${escape(angle.label)}</span> <strong>${escape(angle.summary)}</strong></p>` : ""}
     <div class="outlook-links">
       ${historyHref ? `<a class="history-shortcut" href="${escape(historyHref)}">경기 이력 보기</a>` : ""}

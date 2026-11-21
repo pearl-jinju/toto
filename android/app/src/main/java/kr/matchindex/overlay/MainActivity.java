@@ -20,15 +20,28 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 public final class MainActivity extends Activity {
+    private static final String START_URI = "matchindex://overlay/start";
     private static final String START_AFTER_SETTINGS = "start_after_settings";
+    private static final String START_WHEN_FOCUSED = "start_when_focused";
+    private static final String RETURN_TO_CALLER = "return_to_caller";
 
     private TextView status;
+    private AlertDialog permissionPrompt;
     private boolean startAfterSettings;
+    private boolean startWhenFocused;
+    private boolean returnToCaller;
+    private boolean resumed;
 
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
-        startAfterSettings = state != null && state.getBoolean(START_AFTER_SETTINGS);
+        if (state == null) {
+            queueBrowserLaunch(getIntent());
+        } else {
+            startAfterSettings = state.getBoolean(START_AFTER_SETTINGS);
+            startWhenFocused = state.getBoolean(START_WHEN_FOCUSED);
+            returnToCaller = state.getBoolean(RETURN_TO_CALLER);
+        }
 
         int padding = OverlayService.dp(this, 24);
         ScrollView scroll = new ScrollView(this);
@@ -69,17 +82,54 @@ public final class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        resumed = true;
         boolean allowed = Settings.canDrawOverlays(this);
         status.setText(allowed ? R.string.permission_granted : R.string.permission_needed);
         boolean requested = startAfterSettings;
         startAfterSettings = false;
-        if (requested && allowed) startOverlay();
+        if (requested && allowed) startWhenFocused = true;
+        launchWhenReady();
+    }
+
+    @Override
+    protected void onPause() {
+        resumed = false;
+        super.onPause();
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        queueBrowserLaunch(intent);
+        launchWhenReady();
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) launchWhenReady();
+    }
+
+    private void queueBrowserLaunch(Intent intent) {
+        if (intent == null || !Intent.ACTION_VIEW.equals(intent.getAction())
+                || !START_URI.equals(intent.getDataString())) return;
+        startWhenFocused = true;
+        returnToCaller = true;
+    }
+
+    private void launchWhenReady() {
+        if (!startWhenFocused || !resumed || !hasWindowFocus() || isFinishing()) return;
+        startWhenFocused = false;
+        requestOverlay();
     }
 
     @Override
     protected void onSaveInstanceState(Bundle state) {
         super.onSaveInstanceState(state);
         state.putBoolean(START_AFTER_SETTINGS, startAfterSettings);
+        state.putBoolean(START_WHEN_FOCUSED, startWhenFocused);
+        state.putBoolean(RETURN_TO_CALLER, returnToCaller);
     }
 
     private void requestOverlay() {
@@ -88,7 +138,8 @@ public final class MainActivity extends Activity {
             return;
         }
 
-        new AlertDialog.Builder(this)
+        if (permissionPrompt != null && permissionPrompt.isShowing()) return;
+        permissionPrompt = new AlertDialog.Builder(this)
                 .setTitle(R.string.permission_title)
                 .setMessage(R.string.permission_explanation)
                 .setNegativeButton(android.R.string.cancel, null)
@@ -135,7 +186,11 @@ public final class MainActivity extends Activity {
         }
         try {
             startForegroundService(new Intent(this, OverlayService.class));
-            moveTaskToBack(true);
+            if (returnToCaller) {
+                finish();
+            } else {
+                moveTaskToBack(true);
+            }
         } catch (IllegalStateException | SecurityException error) {
             Toast.makeText(this, R.string.overlay_error, Toast.LENGTH_LONG).show();
         }

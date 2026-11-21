@@ -20,3 +20,18 @@ psql "$DATABASE_URL" -XAt -v ON_ERROR_STOP=1 -f db/export_briefings.sql -o publi
 ```
 
 생성된 브리핑을 검토하고 `main`에 커밋하면 Render가 게시합니다. 이 내보내기는 공개가 승인된 기사 요약과 경기 정보에 사용합니다.
+
+## 징크스 검증과 해외 시장 자료
+
+징크스 사례와 해외 기사에 공개된 배당 시점은 Neon의 `research_snapshot`에 저장합니다. 개발 브랜치에서 확인한 데이터를 운영 브랜치에 반영하고 `db/export_research.sql`을 실행해 `public/research.js`로 게시합니다. 기사 인용 배당은 게시 당시의 자료를 보관합니다.
+
+EPL 조건부 집계는 [OpenFootball의 공개 도메인 2025/26 EPL JSON](https://raw.githubusercontent.com/openfootball/football.json/master/2025-26/en.1.json)을 사용합니다. 시즌 파일을 내려받아 `python scripts/aggregate_epl_patterns.py en.1.json`으로 집계를 재현할 수 있습니다. 원본 SHA-256은 `d6070bdf731546ccf97767f062e8af4bd26dd309dee69f6092025bf9c78f43c1`입니다.
+
+## 과거 경기 이력
+
+`historical_football_season`에 시즌별 출처와 파일 SHA-256을 저장하고, `historical_football_match`에 홈·원정 팀과 경기 날짜, 전반·최종 점수를 저장합니다. 2021/22~2025/26 EPL 시즌 파일은 [OpenFootball](https://github.com/openfootball/football.json)의 공개 도메인 자료입니다.
+
+```sh
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f db/10_historical_football.sql
+python scripts/import_openfootball_epl.py | psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1
+```

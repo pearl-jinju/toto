@@ -265,3 +265,8 @@ details[open] > summary .context-plus::after {transform:none}
   .outlook-line {font-size:1rem}
   .weather-visual {grid-template-columns:55px minmax(0,1fr);gap:8px;padding:7px}
 }
+
+.mascot-figure {display:grid;justify-items:center;gap:0;min-width:0}
+.mascot-word {color:var(--tone,var(--weather-tone,var(--ink)));font-size:.83rem;line-height:1.35;font-weight:780;letter-spacing:-.015em;text-align:center}
+.weather-visual .mascot-word {font-size:.78rem}
+@media(max-width:460px) {.mascot-word {font-size:.78rem}}

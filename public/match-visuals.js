@@ -7,6 +7,9 @@ const conditions = {
   calm:"평온한 예보", rain:"비", wind:"강한 바람", fog:"안개", frost:"낮은 기온", heat:"더위",
   indoor:"실내", roof:"지붕 개폐 미확인", unknown:"예보 자료 미확인"
 };
+const conditionWords = {
+  calm:"평온", rain:"비", wind:"강풍", fog:"안개", frost:"영하", heat:"더위", indoor:"실내", roof:"지붕", unknown:"미확인"
+};
 const impactLevels = {
   low:["영향 작음",1], watch:["영향 주의",2], high:["영향 큼",3], unknown:["영향 판단 보류",0]
 };
@@ -31,6 +34,18 @@ export function mascotArt(pose = "standing", small = false) {
   return `<span class="mascot-art" data-pose="${pose}" style="--mascot-image:url('${src}')" aria-hidden="true">
     <img src="${src}" alt="" width="120" height="120" loading="lazy" decoding="async">
   </span>`;
+}
+
+export function scoringWord(outlook, pose) {
+  if (pose === "running") return "오버";
+  if (pose === "resting") return "언더";
+  if (outlook?.kind === "market") return "참고";
+  if (outlook?.headline?.includes("팽팽합니다")) return "균형";
+  return outlook?.headline ? "예상" : "미정";
+}
+
+export function mascotFigure(word, pose = "standing") {
+  return `<div class="mascot-figure">${mascotArt(pose)}<span class="mascot-word">${escape(word)}</span></div>`;
 }
 
 export function weatherVisual(fact) {
@@ -61,7 +76,7 @@ export function weatherPanel(visual) {
   const bars = [1,2,3].map(step => `<i${step <= lit ? ' class="lit"' : ""}></i>`).join("");
   const readings = Array.isArray(visual?.readings) ? visual.readings : [];
   return `<div class="weather-visual" data-impact="${lit}" data-condition="${escape(visual?.condition ?? "unknown")}">
-    ${mascotArt()}
+    ${mascotFigure(conditionWords[visual?.condition] ?? conditionWords.unknown)}
     <div class="weather-visual-text">
       <span class="weather-visual-label">${escape(visual?.label ?? conditions[visual?.condition] ?? conditions.unknown)}</span>
       <div class="weather-impact"><strong>${level}</strong><span class="weather-impact-bars" aria-hidden="true">${bars}</span></div>

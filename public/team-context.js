@@ -98,12 +98,53 @@ function decimal(american) {
   return (american < 0 ? 1 - 100/american : 1 + american/100).toFixed(2);
 }
 
-function overseas(lines, local) {
+const blockedOddsArticle = "https://www.fanduel.com/research/nba-predictions-odds-11-21-2026";
+const oddsComparisons = {
+  "5049": [
+    "BetMGM · 같은 경기 배당 비교",
+    "https://sports.betmgm.com/en/blog/nba/bucks-76ers-prediction-odds-lines-picks-nba-nov-21-jaa/"
+  ],
+  "5103": [
+    "Action Network · 같은 경기 배당 비교",
+    "https://www.actionnetwork.com/nba/portland-trail-blazers-vs-new-york-knicks-prediction-pick-nba-odds-saturday-november-21"
+  ],
+  "5107": [
+    "BetMGM · 같은 경기 배당 비교",
+    "https://sports.betmgm.com/en/blog/nba/clippers-mavericks-prediction-odds-lines-picks-nba-nov-21-jaa/"
+  ],
+  "5111": [
+    "BetMGM · 같은 경기 배당 비교",
+    "https://sports.betmgm.com/en/blog/nba/grizzlies-timberwolves-player-prop-bets-picks-nba-nov-21-jaa/"
+  ],
+  "5115": [
+    "BetMGM · 같은 경기 배당 비교",
+    "https://sports.betmgm.com/en/blog/nba/pelicans-spurs-player-prop-bets-picks-nba-nov-21-jaa/"
+  ],
+  "5123": [
+    "BetMGM · 같은 경기 배당 비교",
+    "https://sports.betmgm.com/en/blog/nba/celtics-kings-player-prop-bets-picks-nba-nov-21-jaa/"
+  ]
+};
+
+function oddsSource(source, date, values, match, officialSource) {
+  if (source?.[1] !== blockedOddsArticle) return link(source);
+  const american = values.map((odd,i) => odd == null ? "" : `${["홈승","무승부","원정승"][i]} ${odd > 0 ? "+" : ""}${odd}`).filter(Boolean).join(" · ");
+  return `<details class="context-evidence odds-source-details">
+    <summary>FanDuel 출처 자료</summary>
+    <p>${escape(source[0])} · ${escape(date)}</p>
+    <p>당시 미국식 배당 ${escape(american)}</p>
+    <p class="context-basis">FanDuel 원문 접속 제한 · 아래 비교 자료의 배당은 게시 시점에 따라 다를 수 있습니다.</p>
+    ${link(oddsComparisons[match.number])}${link(["베트맨 · 공식 경기표",officialSource])}
+  </details>`;
+}
+
+function overseas(lines, match, officialSource) {
+  const local = match.odds;
   return `${lines.map(([name, date, values, total, source]) => `<section class="context-item">
     <h4>${escape(name)}</h4><p class="context-basis">${escape(date)} · 소수 배당</p>
     <dl class="context-values">${values.map((odd, index) => odd == null ? "" :
       `<div><dt>${["홈승","무승부","원정승"][index]}</dt><dd>${decimal(odd)}</dd></div>`).join("")}</dl>
-    <p>${escape(total)}</p>${link(source)}
+    <p>${escape(total)}</p>${oddsSource(source,date,values,match,officialSource)}
   </section>`).join("")}
   ${local?.some(odd => odd != null) ? `<p class="context-basis">베트맨 일반 배당 · 홈 ${local[0]?.toFixed(2) ?? "—"} · 무 ${local[1]?.toFixed(2) ?? "—"} · 원정 ${local[2]?.toFixed(2) ?? "—"}</p>` : ""}`;
 }
@@ -142,7 +183,7 @@ export function teamContextPanels(match, round, {detail, editorial, auto, opened
     (playerRows.length || editorial?.roster) ? card("players","주요 선수","◇","최근 활약과 출전 상태",
       (editorial?.roster ? `<section class="context-item"><h4>출전 변수</h4><p>${escape(editorial.roster[0])}</p>${link(["NBA 부상 보고서 · 11/21 23:15 KST",editorial.roster[1]])}</section>` : "")+genericItems(playerRows,"player")+renderAutomaticFactors(auto,"players"),opened) : "",
     newsRows.length ? card("news","주요 뉴스","≡","경기에 관련된 발표",genericItems(newsRows,"news")+renderAutomaticFactors(auto,"news"),opened) : "",
-    extra.odds ? card("odds","해외 배당","∷","해외 업체가 공개한 배당",overseas(extra.odds,match.odds),opened) : "",
+    extra.odds ? card("odds","해외 배당","∷","해외 업체가 공개한 배당",overseas(extra.odds,match,round.source),opened) : "",
     (epl || extra.comparison || extra.teamStats?.length) ? card("compare","팀 비교","⇆","홈·원정 득실점",
       extra.comparison ? statedComparison(extra.comparison) : epl ? eplSlot("compare") : automaticComparison(extra.teamStats,match.sport),opened) : "",
     (extra.recent || epl) ? card("recent","최근 5경기","↗","승·무·패와 실제 점수",

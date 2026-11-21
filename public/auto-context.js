@@ -1,4 +1,4 @@
-import { mascotArt, scoringPose, weatherHint, weatherPanel, weatherVisual } from "./match-visuals.js";
+import { mascotFigure, scoringPose, scoringWord, weatherHint, weatherPanel, weatherVisual } from "./match-visuals.js";
 
 const displayDate = new Intl.DateTimeFormat("ko-KR", {
   timeZone: "Asia/Seoul",
@@ -173,7 +173,7 @@ export function renderOutlook(outlook, cancelled = false) {
   const headline = outlook?.headline ?? "현재 확인된 자료로는 득점 전망을 내기 어렵습니다";
   return `<section class="outlook-box" data-pose="${pose}">
     <div class="outlook-visual">
-      ${mascotArt(pose)}
+      ${mascotFigure(scoringWord(outlook,pose),pose)}
       <div class="outlook-main">
         <p class="outlook-label">${label}${outlook?.archived ? " · 경기 전 기록 기준" : ""}</p>
         <p class="outlook-line">${escape(headline)}</p>

@@ -4,6 +4,7 @@ import logging
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
+from pathlib import Path
 from threading import Event, Lock, Thread
 from time import monotonic
 
@@ -17,6 +18,21 @@ from scripts.venue_weather import enrich_fixtures
 logger = logging.getLogger("match-context")
 POLL_SECONDS = 1800
 RETRY_SECONDS = 240
+PREVIEW_FILE = Path(__file__).resolve().parent.parent / "data" / "verified_fixture_previews.json"
+VERIFIED_PREVIEWS = {
+    (entry["round"], entry["number"], entry["home"], entry["away"]): entry
+    for entry in json.loads(PREVIEW_FILE.read_text(encoding="utf-8"))
+}
+
+
+def club_results(preview, league):
+    for club in preview.get("clubs", []):
+        team = club["team"]
+        for day, opponent, venue, gf, ga in club["results"]:
+            home, away, score = (team, opponent, [gf, ga]) if venue == "홈" else (opponent, team, [ga, gf])
+            yield {"provider": "club-results", "league": league, "id": f"{day}:{home}:{away}",
+                   "home": home, "away": away, "start": day + "T12:00:00+09:00", "dateOnly": True,
+                   "complete": True, "score": score, "source": club["source"]}
 
 
 def round_number(feed):
@@ -99,6 +115,7 @@ def combine_context(existing, current):
     result = {**existing, **current}
     if current["fixture"].get("status") == "cancelled":
         result.pop("outlook", None)
+        result.pop("flowPreview", None)
     # Retain confirmed information across an upstream outage. The original fact timestamps stay attached.
     factors = {factor_key(f): f for f in existing.get("factors", [])}
     updated_categories = {f["category"] for f in current["factors"]}
@@ -166,6 +183,15 @@ class ContextWorker:
 
     def refresh(self, feed, round_id):
         fixtures = feed["matches"]
+        previews = {
+            fixture["number"]: VERIFIED_PREVIEWS[(round_id, fixture["number"], fixture["home"], fixture["away"])]
+            for fixture in fixtures
+            if (round_id, fixture["number"], fixture["home"], fixture["away"]) in VERIFIED_PREVIEWS
+        }
+        verified_games = {
+            fixture["number"]: list(club_results(previews[fixture["number"]], fixture["league"]))
+            for fixture in fixtures if fixture["number"] in previews
+        }
         previous = self.cached(round_id)
         if previous is None and self.store:
             try:
@@ -192,11 +218,12 @@ class ContextWorker:
         latest = {key: state for response in responses for key, state in response.get("coverage", {}).items()}
         selected_days = {fixture["league"] for fixture in fixtures}
         events = distinct([*external, *(event for event in past_proto if event["league"] in selected_days), *official_results(feed)])
-        digest = hashlib.sha256(json.dumps(events, ensure_ascii=False, sort_keys=True).encode("utf-8")).digest()
+        archive_events = distinct([*events, *(game for games in verified_games.values() for game in games)])
+        digest = hashlib.sha256(json.dumps(archive_events, ensure_ascii=False, sort_keys=True).encode("utf-8")).digest()
         if self.store:
             try:
                 if self.last_events_digest != digest:
-                    self.store.archive(events)
+                    self.store.archive(archive_events)
                     self.last_events_digest = digest
                 missing_leagues = leagues - verified_leagues
                 if missing_leagues:
@@ -217,7 +244,9 @@ class ContextWorker:
         for fixture in fixtures:
             number = fixture["number"]
             provider_event = matched.get(number)
-            analysis = analyze_fixture(fixture, provider_event, buckets[fixture["league"]]) or {}
+            preview = previews.get(number)
+            club_games = verified_games.get(number, ())
+            analysis = analyze_fixture(fixture, provider_event, buckets[fixture["league"]], club_games) or {}
             scoring = analysis.pop("scoring", None)
             factors = list(venue_factors.get(number, venue_factors.get(str(number), [])))
             factors.extend(previous_round_fixtures(fixtures, fixture, [f"베트맨 · {feed['round']}회차 일정", feed["source"]]))
@@ -229,10 +258,12 @@ class ContextWorker:
                 if fixture.get("status") == "finished" and isinstance(crowd, int) and crowd > 0:
                     factors.append({"category": "venue", "title": "공식 관중 수", "value": f"{crowd:,}명",
                                     "text": "리그가 이 경기의 공식 결과에 기록한 관중 수입니다.", "source": provider_event["source"]})
-            outlook = build_outlook(fixture, provider_event, buckets[fixture["league"]], factors, ["베트맨 · 해당 회차 득점 기준점", feed["source"]])
+            outlook = build_outlook(fixture, provider_event, buckets[fixture["league"]], factors,
+                                    ["베트맨 · 해당 회차 득점 기준점", feed["source"]], club_games)
             details = {
                 **analysis,
                 **({"outlook": outlook} if outlook else {}),
+                **({"flowPreview": preview["flow"]} if preview and fixture.get("status") != "cancelled" else {}),
                 "fixture": meta(fixture),
                 "updatedAt": checked_at,
                 "factors": factors,

@@ -215,5 +215,5 @@ if (params.get("view") === "history") renderHistoryPage(main,params);
 else if (selected) showBriefing(withOfficialStatus(selected));
 else {
   renderSchedule(main, games, params);
-  main.insertAdjacentHTML("beforeend", patternLibrary());
+  if (!mini) main.insertAdjacentHTML("beforeend", patternLibrary());
 }

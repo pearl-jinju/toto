@@ -2,7 +2,8 @@ import { sourceCredit, sourceLink as link } from "./source-links.js";
 import { fixtureHistoryHref } from "./history-report.js";
 import { fixtureContext } from "./fixture-context.js";
 import { sources } from "./data.js";
-import { automaticCards, renderAutomaticFactors, renderOutlook, weatherFacts } from "./auto-context.js";
+import { automaticCards, renderAutomaticFactors, renderMatchFlow, renderOutlook, weatherFacts } from "./auto-context.js";
+import { renderComparisonGraphic } from "./team-comparison.js";
 import { curatedWeatherVisual, mascotArt, weatherHint, weatherPanel } from "./match-visuals.js";
 
 const aliases = {
@@ -57,15 +58,27 @@ function resultRun(games) {
 }
 
 function recentTeams(teams, basis, sport = "축구") {
+  const sample = Math.min(5,...teams.map(([,games])=>games.length));
+  const usePoints = sport === "축구";
+  const rank = teams.map(([,games])=>{
+    const [wins,draws] = counts(games.slice(0,sample));
+    return usePoints ? wins*3 + draws : wins;
+  });
+  const leader = teams.length === 2 && sample >= 3 && rank[0] !== rank[1]
+    ? Number(rank[1] > rank[0]) : -1;
   return `<p class="context-basis">${escape(basis)} · 최신 경기부터</p>
-    <div class="context-grid-two">${teams.map(([name, games, source]) => {
+    <div class="context-grid-two">${teams.map(([name, games, source],index) => {
       const [w,d,l] = counts(games);
       const scored = games.reduce((sum, r) => sum+r[3],0);
       const allowed = games.reduce((sum, r) => sum+r[4],0);
-      return `<section class="context-stat">
-        <h4>${escape(name)}</h4>${resultRun(games)}
+      const leads = index === leader;
+      return `<section class="context-stat${leads ? " form-leader" : ""}">
+        <div class="form-heading"><h4>${escape(name)}</h4>
+          ${leads ? `<span class="form-advantage">${mascotArt("courtside",true)}<b>최근 우세</b></span>` : ""}
+        </div>${resultRun(games)}
         <p class="context-number">${w}승 ${d ? d+"무 " : ""}${l}패</p>
         <p class="context-basis">${games.length}경기 · ${sport === "배구" ? `${scored}세트 획득 · ${allowed}세트 허용` : `${scored}득점 · ${allowed}실점`}</p>
+        ${leads ? `<p class="form-edge">양 팀 최근 ${sample}경기 ${usePoints ? "승점" : "승수"} ${rank[index]} 대 ${rank[1-index]}</p>` : ""}
         <details class="context-evidence"><summary>날짜별 결과</summary>
           <ol>${games.map(([day, opp, venue, gf, ga]) => `<li><time>${escape(day)}</time><span>${escape(opp)} <small>${escape(venue)}</small></span><strong>${gf} : ${ga}</strong></li>`).join("")}</ol>
           ${link(source)}
@@ -144,7 +157,7 @@ function overseas(lines, match, officialSource) {
 
 function stadium(venue, onSite) {
   const list = values => `<ul class="context-chips">${values.map(value => `<li>${escape(value)}</li>`).join("")}</ul>`;
-  return `${venue ? `<h4>${escape(venue.name)}</h4>${list(venue.facts)}<p>${escape(venue.note)}</p>${venue.sources.map(link).join("")}` : ""}
+  return `${venue ? `<h4>${escape(venue.name)}</h4>${list(venue.facts)}${venue.sources.map(link).join("")}` : ""}
     ${onSite ? `<div class="context-item"><h4>경기 당일 관측</h4>${list(onSite.facts)}${sourceCredit(onSite.source)}</div>` : ""}`;
 }
 
@@ -167,7 +180,7 @@ export function teamContextPanels(match, round, {detail, editorial, auto, opened
   const weather = detail?.weatherAssessment;
   const newsRows = [...(extra.news ?? []),...(detail?.events?.map(([date, category, title, body, ref])=>[date,title,body,sources[ref]]) ?? [])];
   const cards = [
-    (venue || extra.onSite) ? card("venue","구장 특징","◎","잔디·시설·당일 조건",stadium(venue,extra.onSite)+renderAutomaticFactors(auto,"venue"),opened) : "",
+    (venue || extra.onSite) ? card("venue","구장 특징","◎","잔디·시설·당일 조건",renderMatchFlow(auto,match.voided)+stadium(venue,extra.onSite)+renderAutomaticFactors(auto,"venue"),opened) : "",
     weather && !weatherFacts(auto).length ? card("weather","경기 환경","",weatherHint(curatedWeatherVisual(detail)),
       `${weatherPanel({...curatedWeatherVisual(detail),readings:weather.readings.map(([label,value])=>({label,value}))})}
       <p class="weather-origin"><strong>${escape(weather.basis)}</strong></p>
@@ -180,7 +193,7 @@ export function teamContextPanels(match, round, {detail, editorial, auto, opened
     newsRows.length ? card("news","주요 뉴스","≡","경기에 관련된 발표",genericItems(newsRows,"news")+renderAutomaticFactors(auto,"news"),opened) : "",
     extra.odds ? card("odds","해외 배당","∷","해외 업체가 공개한 배당",overseas(extra.odds,match,round.source),opened) : "",
     (epl || extra.comparison || extra.teamStats?.length) ? card("compare","팀 비교","⇆","홈·원정 득실점",
-      extra.comparison ? statedComparison(extra.comparison) : epl ? eplSlot("compare") : automaticComparison(extra.teamStats,match.sport),opened) : "",
+      extra.comparison ? statedComparison(extra.comparison) : epl ? eplSlot("compare") : automaticComparison(extra.teamStats,match),opened) : "",
     (extra.recent || epl) ? card("recent","최근 5경기","↗","승·무·패와 실제 점수",
       extra.recent ? recentTeams(extra.recent, extra.recentBasis, match.sport) : eplSlot("recent"), opened) : "",
     (extra.records.length || epl) ? card("record","맞대결·팀 패턴","↔","반복된 기록과 경기 수",
@@ -196,13 +209,39 @@ export function teamContextPanels(match, round, {detail, editorial, auto, opened
   </details>`;
 }
 
-function automaticComparison(teams,sport) {
-  const unit = sport === "축구" ? "득점" : sport === "배구" ? "획득 세트" : "득점";
-  return `<p class="context-basis">최대 최근 10경기 · 홈과 원정은 각각 최대 5경기 · 등록 자료 기준</p>
-    <div class="context-grid-two">${teams.map(team => `<section class="context-stat">
+function comparisonSide(name, [played,gf,ga] = [], scope) {
+  return {name, scope:played ? `${scope} ${played}경기` : "", gf:played ? gf/played : null, ga:played ? ga/played : null};
+}
+
+function comparisonDetails(contents) {
+  return `<details class="context-evidence comparison-details"><summary>전체·홈·원정 수치</summary>
+    <div class="context-grid-two">${contents}</div>
+  </details>`;
+}
+
+function statRows(team) {
+  return [team,team.home,team.away].map(row=>[row.played,row.for,row.against]);
+}
+
+const recordDate = new Intl.DateTimeFormat("ko-KR", {timeZone:"Asia/Seoul",month:"numeric",day:"numeric"});
+
+function automaticComparison(teams,match) {
+  const label = match.sport === "배구" ? "획득 세트" : "득점";
+  const unit = match.sport === "축구" ? "골" : match.sport === "배구" ? "세트" : "점";
+  const [home,away] = [match.home,match.away].map(name=>teams.find(team=>key(team.team)===key(name)));
+  const graphic = renderComparisonGraphic({
+    home:comparisonSide(match.home,home ? statRows(home)[1] : undefined,"홈 최근"),
+    away:comparisonSide(match.away,away ? statRows(away)[2] : undefined,"원정 최근"),
+    unit
+  });
+  const dates = teams.filter(team=>Number.isFinite(Date.parse(team.lastPlayed)))
+    .map(team=>`${escape(team.team)} ${recordDate.format(new Date(team.lastPlayed))}`);
+  return `${graphic}
+    ${dates.length ? `<p class="context-basis">공급처에서 확인된 마지막 경기 · ${dates.join(" · ")}</p>` : ""}
+    ${comparisonDetails(teams.map(team=>`<section class="context-stat">
       <h4>${escape(team.team)}</h4><p class="context-number">${team.wins}승 ${team.draws ? team.draws+"무 " : ""}${team.losses}패</p>
-      ${splitRows([team,team.home,team.away].map(row=>[row.played,row.for,row.against]),unit)}${link(team.source)}
-    </section>`).join("")}</div>`;
+      ${splitRows(statRows(team),label)}${link(team.source)}
+    </section>`).join(""))}`;
 }
 
 function archive() {
@@ -232,9 +271,13 @@ function splitRows(splits, label = "득점") {
 }
 
 function statedComparison({date,teams,source}) {
-  return `<p class="context-basis">${escape(date)}</p><div class="context-grid-two">${teams.map(([team,rank,points,record,splits])=>
+  const [[home,,,,homeSplits],[away,,,,awaySplits]] = teams;
+  return `${renderComparisonGraphic({home:comparisonSide(home,homeSplits[1],"홈"),
+    away:comparisonSide(away,awaySplits[2],"원정"),unit:"골"})}
+    <p class="context-basis">${escape(date)}</p>
+    ${comparisonDetails(teams.map(([team,rank,points,record,splits])=>
     `<section class="context-stat"><h4>${escape(team)}</h4><p class="context-number">${rank}위</p>
-    <p class="context-basis">${points}점 · ${escape(record)}</p>${splitRows(splits)}</section>`).join("")}</div>${link(source)}`;
+    <p class="context-basis">${points}점 · ${escape(record)}</p>${splitRows(splits)}</section>`).join(""))}${link(source)}`;
 }
 
 function leagueComparison(matches, teams, season, archiveDate, source) {
@@ -249,20 +292,26 @@ function leagueComparison(matches, teams, season, archiveDate, source) {
     }
   }
   const order = (a,b) => b.points-a.points || b.difference-a.difference || b.goals-a.goals;
-  return `<p class="context-basis">${escape(season)} EPL · ${escape(archiveDate)}까지 집계</p>
-    <div class="context-grid-two">${teams.map(([id,name])=>{
-      const total = totals.get(id);
-      if (!total) return `<section class="context-stat"><h4>${escape(name)}</h4><p>이번 시즌 집계된 리그 경기가 없습니다.</p></section>`;
-      const rank = [...totals.values()].filter(other=>order(other,total) < 0).length+1;
-      const splits = [
+  const rows = teams.map(([id,name])=>{
+    const splits = [
         matches.filter(g=>g[1]===id || g[2]===id),
         matches.filter(g=>g[1]===id),
         matches.filter(g=>g[2]===id)
       ].map(rows=>rows.reduce(([n,gf,ga],[,home,,,,hg,ag])=>
         home===id ? [n+1,gf+hg,ga+ag] : [n+1,gf+ag,ga+hg],[0,0,0]));
+    return [id,name,splits];
+  });
+  const [[,home,homeSplits],[,away,awaySplits]] = rows;
+  return `${renderComparisonGraphic({home:comparisonSide(home,homeSplits[1],"홈"),
+    away:comparisonSide(away,awaySplits[2],"원정"),unit:"골"})}
+    <p class="context-basis">${escape(season)} EPL · ${escape(archiveDate)}까지 집계</p>
+    ${comparisonDetails(rows.map(([id,name,splits])=>{
+      const total = totals.get(id);
+      if (!total) return `<section class="context-stat"><h4>${escape(name)}</h4><p>이번 시즌 집계된 리그 경기가 없습니다.</p></section>`;
+      const rank = [...totals.values()].filter(other=>order(other,total) < 0).length+1;
       return `<section class="context-stat"><h4>${escape(name)}</h4><p class="context-number">${rank}위</p>
         <p class="context-basis">${total.points}점 · ${splits[0][0]}경기</p>${splitRows(splits)}</section>`;
-    }).join("")}</div>${link(source)}`;
+    }).join(""))}${link(source)}`;
 }
 
 function halfTimePattern(seasonal, home, away, homeName, awayName) {

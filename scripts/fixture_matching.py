@@ -453,7 +453,7 @@ def match_fixtures(fixtures, events):
     return mapped
 
 
-def completed_history(fixture, event, events, sources):
+def completed_history(fixture, event, events, sources, verified=()):
     """Use scored, completed matches from the same competition before kickoff."""
     start = timestamp(fixture.get("startsAt"))
     if start is None:
@@ -496,17 +496,30 @@ def completed_history(fixture, event, events, sources):
         ]
         return min(counts), sum(counts)
 
-    if not source_histories:
-        return []
-    best_provider = max(source_histories, key=lambda provider: (coverage(source_histories[provider]), provider == direct_source))
+    best_rows = max(source_histories.values(), key=coverage, default=[])
+    if direct_source in source_histories and coverage(source_histories[direct_source]) == coverage(best_rows):
+        best_rows = source_histories[direct_source]
     by_match = defaultdict(list)
-    for entry in source_histories[best_provider]:
+    for entry in best_rows:
         day, home, away, score, _ = entry
         by_match[(day, home, away)].append(entry)
     rows = []
     for same_match in by_match.values():
         if len({option[3] for option in same_match}) == 1:
             rows.append(same_match[0])
+    # Club results include dates, so use them in place of the same fixture from a general feed.
+    verified_rows = []
+    for event in verified:
+        day, score = timestamp(event["start"]), score_of(event["score"])
+        home, away = pair(event)
+        if (day and score and event["league"] == league and known_source(event)
+                and day.astimezone(KST).date() < start.astimezone(KST).date()
+                and (home in team_names or away in team_names)):
+            verified_rows.append((day, home, away, score, event))
+    rows = [row for row in rows if not any(
+        row[1:3] == club_row[1:3] and abs(row[0] - club_row[0]) < timedelta(days=1)
+        for club_row in verified_rows
+    )] + verified_rows
     rows.sort(key=lambda row: row[0], reverse=True)
     if rows:
         sources.append(known_source(rows[0][-1]))
@@ -618,9 +631,9 @@ def scoring_context(fixture, event, history, home, away, source):
     return result
 
 
-def analyze_fixture(fixture, event, events):
+def analyze_fixture(fixture, event, events, verified=()):
     sources = []
-    history = completed_history(fixture, event, events, sources)
+    history = completed_history(fixture, event, events, sources, verified)
     if not history:
         return {}
     home, away = pair(fixture)

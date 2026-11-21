@@ -87,7 +87,6 @@ function renderFact(fact) {
       <dl class="venue-features">
         ${fact.venueFacts.map(([label,detail])=>renderLine(escape(label),detail)).join("")}
       </dl>
-      ${text ? `<p class="venue-watch"><strong>경기에서 볼 점</strong><span>${escape(text)}</span></p>` : ""}
       <details class="context-evidence"><summary>구장 자료 출처</summary>
         ${sourceCredits([source,...(fact.venueReferences ?? [])])}
       </details>
@@ -104,6 +103,19 @@ function renderFact(fact) {
     ${names.length ? `<details class="weather-evidence"><summary>선수 이름 원문</summary><p>${names.map(escape).join(" · ")}</p></details>` : ""}
     ${sourceLink(source)}${sourceLink(reference)}
     </section>`;
+}
+
+export function renderMatchFlow(context, cancelled = false) {
+  if (cancelled) return "";
+  const preview = context?.flowPreview;
+  const flow = preview ?? context?.outlook?.flow;
+  const published = flow?.published ? flow.published.replaceAll("-", ".") : "";
+  return `<section class="venue-flow">
+    <span>경기 양상${context?.fixture?.status === "finished" ? " · 경기 전 자료 기준" : ""}</span>
+    <h4>${escape(flow?.headline ?? "득점 흐름을 비교할 경기 기록을 확인 중입니다.")}</h4>
+    ${flow?.basis ? `<p>${escape(flow.basis)}</p>` : ""}
+    ${published ? `<div class="venue-flow-source"><time datetime="${escape(flow.published)}">${escape(published)} 발표</time>${sourceLink(flow.source)}</div>` : ""}
+  </section>`;
 }
 
 export function renderAutomaticFactors(context,category) {
@@ -176,7 +188,8 @@ export function automaticCards(match, round, context, existingIds, card, opened)
       const venue = category === "venue" ? items.find(fact=>Array.isArray(fact.venueFacts)) : null;
       const titleText = venue ? "구장 특징" : category === "venue" && items.every(fact=>fact.title==="개최 도시") ? "경기장 위치" : title;
       const hintText = venue ? venue.venueFacts.slice(0,2).map(([,value])=>value).join(" · ") : hint;
-      supplemental.push(card(category,titleText,icon,hintText,items.map(renderFact).join(""),opened));
+      const flow = category === "venue" ? renderMatchFlow(context,match.voided) : "";
+      supplemental.push(card(category,titleText,icon,hintText,flow + items.map(renderFact).join(""),opened));
     }
   }
 

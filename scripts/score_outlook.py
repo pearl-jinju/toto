@@ -129,7 +129,34 @@ def combined_condition(history, tag, line, now):
     return change * min(0.35, len(wet) / (len(wet) + 80)), len(wet), first, len(other), second
 
 
-def build_outlook(fixture, matched_event, events, factors, source):
+def match_flow(fixture, unit, midpoint, home_estimate=None, away_estimate=None):
+    sport = fixture["sport"]
+    if sport == "배구":
+        sets = round(midpoint)
+        return {
+            "headline": {3: "3세트로 끝나는 흐름이 조금 더 유력합니다.",
+                         4: "양 팀이 세트를 주고받아 4세트 안팎까지 갈 흐름입니다.",
+                         5: "5세트까지 이어질 가능성이 있습니다."}[sets],
+            "basis": f"양 팀 경기의 예상 합계는 {midpoint:.1f}세트입니다.",
+        }
+    if home_estimate is None:
+        return {}
+    margin = {"축구": 0.45, "야구": 0.65, "농구": 5}[sport]
+    difference = home_estimate - away_estimate
+    if abs(difference) >= margin:
+        team = fixture["home"] if difference > 0 else fixture["away"]
+        headline = f"{team} 쪽에 득점이 더 많이 날 흐름입니다."
+    else:
+        headline = "양 팀 예상 득점이 비슷합니다."
+    precision = 0 if sport == "농구" else 1
+    return {
+        "headline": headline,
+        "basis": f"홈·원정 기록을 반영한 예상 · {fixture['home']} {home_estimate:.{precision}f}{unit}"
+                 f" · {fixture['away']} {away_estimate:.{precision}f}{unit}",
+    }
+
+
+def build_outlook(fixture, matched_event, events, factors, source, verified=()):
     sport = fixture["sport"]
     unit = UNITS.get(sport)
     if not unit or fixture.get("status") == "cancelled":
@@ -137,7 +164,7 @@ def build_outlook(fixture, matched_event, events, factors, source):
     total = fixture.get("total")
     line, market_under, _ = market_parts(total)
     sources = []
-    history = completed_history(fixture, matched_event, events, sources)
+    history = completed_history(fixture, matched_event, events, sources, verified)
     home, away = pair(fixture)
     now = timestamp(fixture.get("startsAt"))
     if not now:
@@ -205,6 +232,7 @@ def build_outlook(fixture, matched_event, events, factors, source):
         favored = "언더" if probability >= .5 else "오버"
         estimate = max(probability,1 - probability)
         basis += f" {criterion:g}{unit} 기준 {favored} 추정 {estimate:.0%}."
+    home_estimate = away_estimate = None
     if sport != "배구" and observed > 0:
         home_share = (home_for + away_against) / (2 * observed)
         home_estimate, away_estimate = midpoint * home_share, midpoint * (1 - home_share)
@@ -218,6 +246,7 @@ def build_outlook(fixture, matched_event, events, factors, source):
         scoring_pose = "resting" if probability > .5 else "running"
     return {
         "kind": "model", "pose": scoring_pose, "headline": headline, "basis": basis, "range": f"{low}–{high}{unit}",
+        "flow": match_flow(fixture, unit, midpoint, home_estimate, away_estimate),
         "weather": weather_note, "source": sources[0], "archived": fixture.get("status") == "finished",
         "evidence": outlook_evidence(fixture, (home, away), selected, matchup_rows, len(league)),
     }

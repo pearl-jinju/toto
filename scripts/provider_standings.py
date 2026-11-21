@@ -31,6 +31,7 @@ OPENLIGA_REFERENCE = {
     "독일 분데스리가2": ["분데스리가2 공식 순위표", "https://www.bundesliga.com/en/2bundesliga/table"],
 }
 LALIGA = "스페인 라리가"
+LALIGA_SHORT = {"R. Racing Club": "Racing Santander", "Celta": "Celta Vigo"}
 EREDIVISIE = "네덜란드 에레디비시"
 WKBL = "WKBL"
 WKBL_HOME = "https://www.wkbl.or.kr/game/team_rank.asp?gun=1"
@@ -38,8 +39,9 @@ WKBL_DATA = "https://www.wkbl.or.kr/game/ajax/ajax_team_rank.asp"
 
 
 def get_text(url, params=None):
-    data = urlencode(params).encode("utf-8") if params is not None else None
-    request = Request(url, data=data, headers={"User-Agent": "Mozilla/5.0 (compatible; MatchIndex/1.0)", "Accept": "*/*"})
+    if params:
+        url += "?" + urlencode(params)
+    request = Request(url, headers={"User-Agent": "Mozilla/5.0 (compatible; MatchIndex/1.0)", "Accept": "*/*"})
     with urlopen(request, timeout=10) as response:
         body = response.read(3_000_001)
     if len(body) > 3_000_000:
@@ -185,7 +187,8 @@ def laliga_table(league, season, names, checked_at):
     rows = []
     for entry in props["standings"]:
         team = entry["team"]
-        name = korean_name(team["nickname"], names)
+        nickname = team["nickname"]
+        name = korean_name(LALIGA_SHORT.get(nickname, nickname), names)
         rank, played, wins, draws, losses, points, scored, conceded = [
             entry[key] for key in ("position", "played", "won", "drawn", "lost", "points", "goals_for", "goals_against")
         ]

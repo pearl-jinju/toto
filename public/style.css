@@ -156,6 +156,36 @@ button,input,.primary{font:inherit;border:1px solid var(--line);background:#1326
 .context-plus::after {transform:rotate(90deg)}
 details[open] > summary .context-plus::after {transform:none}
 .match-context > summary:hover,.context-card > summary:hover {background:#172938;border-radius:9px}
+
+.fixture[open] .match-context:not([open]) {border-color:#4b7786}
+
+@property --detail-border-angle {
+  syntax:"<angle>";
+  inherits:false;
+  initial-value:0deg;
+}
+
+@keyframes detail-border-glow {
+  to {--detail-border-angle:360deg}
+}
+
+@supports (mask-composite:exclude) {
+  @media (prefers-reduced-motion:no-preference) {
+    .fixture[open] .match-context:not([open]) > summary {position:relative}
+    .fixture[open] .match-context:not([open]) > summary::after {
+      content:"";
+      position:absolute;
+      inset:-1px;
+      padding:1.5px;
+      border-radius:11px;
+      pointer-events:none;
+      background:conic-gradient(from var(--detail-border-angle,0deg),transparent 0deg 278deg,#67b9ad55 312deg,#9becd6 348deg,transparent 360deg);
+      mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+      mask-composite:exclude;
+      animation:detail-border-glow 6.5s linear infinite;
+    }
+  }
+}
 .context-cards {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:start;gap:10px;padding:3px 11px 11px}
 .context-card {--card-accent:#77e3c4;min-width:0;border:1px solid #304657;border-top:3px solid var(--card-accent);border-radius:10px;background:#142332}
 .context-card[data-context-card=record] {--card-accent:#d5abff}

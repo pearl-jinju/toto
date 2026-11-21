@@ -162,7 +162,7 @@ function stadium(venue, onSite) {
     ${onSite ? `<div class="context-item"><h4>경기 당일 관측</h4>${list(onSite.facts)}${sourceCredit(onSite.source)}</div>` : ""}`;
 }
 
-export function teamContextPanels(match, round, {detail, editorial, auto, standings, opened = new Set()} = {}) {
+export function teamContextPanels(match, round, {detail, editorial, auto, standings, detailSponsor = "", opened = new Set()} = {}) {
   if (!match) return "";
   const roundId = (round.year % 100)*10000 + round.round;
   const scoped = roundId === fixtureContext.roundId;
@@ -212,6 +212,7 @@ export function teamContextPanels(match, round, {detail, editorial, auto, standi
     ${renderOutlook(auto?.outlook ?? (match.total ? {kind:"market",headline:`베트맨 기준 ${match.total.line}${match.sport === "축구" ? "골" : "점"} · ${match.total.under === match.total.over ? "언더·오버 배당이 같습니다" : `${match.total.under < match.total.over ? "언더" : "오버"} 쪽 배당이 낮습니다`}`,basis:`언더 ${match.total.under.toFixed(2)} · 오버 ${match.total.over.toFixed(2)}`,source:["베트맨 · 경기 배당",round.source]} : null), match.voided,fixtureHistoryHref(match.number,roundId),{angle:auto?.matchAngle,interpretations:outlookInterpretations(auto),notes,
       extraEvidence:epl ? eplSlot("record") : "",openEvidence:opened.has("outlook-evidence")})}
     <div class="context-cards">${allCards.join("")}</div>
+    ${detailSponsor}
   </details>`;
 }
 

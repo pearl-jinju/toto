@@ -5,6 +5,7 @@ import { research } from "./research.js";
 import { publishedMatchInfo, renderSchedule, withOfficialStatus } from "./schedule.js";
 import { fetchAutomaticContext, renderOutlook, renderWeatherFacts, outlookInterpretations } from "./auto-context.js";
 import { curatedWeatherVisual, weatherPanel } from "./match-visuals.js";
+import { sponsorSlot } from "./sponsor-slots.js";
 
 const main = document.querySelector("#main");
 const params = new URLSearchParams(location.search);
@@ -165,7 +166,7 @@ function showBriefing(game) {
   document.body.classList.toggle("compact", mini);
   main.innerHTML = `<nav class="actions detail-nav" aria-label="브리핑 탐색">
     <a href="./?sport=${game.sport}">경기 목록</a>
-    ${mini ? `<a href="${matchUrl(game,false)}">전체 브리핑</a>` : ""}</nav>${briefing(game,mini)}`;
+    ${mini ? `<a href="${matchUrl(game,false)}">전체 브리핑</a>` : ""}</nav>${briefing(game,mini)}${mini ? "" : sponsorSlot("detail",params.get("ads") === "preview")}`;
   loadBriefingOutlook(main,game);
 }
 

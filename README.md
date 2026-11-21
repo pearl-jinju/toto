@@ -9,6 +9,12 @@
 - 로컬 실행: `python server.py` 후 http://localhost:8000
 - Render 정적 사이트 게시 폴더: `public`
 
+## 광고 자리
+
+- `?ads=preview`로 경기 목록 배치, `?fixture=5232&ads=preview`에서 경기 분석표의 상세 정보 배치를 확인합니다.
+- 목록에는 모바일·태블릿용 `feed`(320×100) 또는 1280px 이상 PC용 `rail`(300×250)이 표시됩니다. `detail`(320×100)은 상세 정보 카드 뒤에 표시됩니다.
+- 계약한 광고가 있으면 `public/sponsor-slots.js`의 `creatives`에 자리별 `name`, `image`, `url`을 등록합니다. `image`는 `public/assets/sponsors`에 둔 이미지의 `assets/sponsors/banner.png` 형태이고, `url`은 HTTPS 주소입니다. 미등록 자리는 일반 화면에서 차지하는 공간이 없습니다.
+
 ## Neon에서 브리핑 게시
 
 Neon 프로젝트 `matchindex-proto`의 `matchindex` 데이터베이스에 날짜별로 공개 브리핑과 출처를 보관합니다. `development`에서 변경을 확인한 뒤 `main`에 반영합니다. 공개 웹은 마지막으로 게시한 스냅샷을 제공하며, DB 수정은 다음 게시 때 반영됩니다.

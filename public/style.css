@@ -540,9 +540,15 @@ a.overlay-launch {text-decoration:none}
 .android-overlay-choice-action { display: grid; place-items: center; min-height: 44px; border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; text-align: center; text-decoration: none; font: inherit; }
 .android-overlay-choice-action.primary { border-color: var(--accent); background: var(--accent); color: #07231b; font-weight: 750; }
 .android-overlay-choice .android-overlay-choice-note { margin: 12px 0 0; font-size: .82rem; }
-.outlook-angle {display:flex;flex-wrap:wrap;align-items:baseline;gap:3px 7px;margin:8px 0 3px;font-size:.9rem}
-.outlook-angle>span {color:var(--tone);font-size:.79rem;font-weight:730}
-.outlook-angle>strong {font-weight:700}
+.analysis-keyword {color:#ffd495;font-weight:790}
+.result-outlook-headline .analysis-keyword {color:#c7e3ff}
+.outlook-line .analysis-keyword {color:var(--tone,#ffd495)}
+.outlook-line>span {font-weight:600}
+.outlook-angle {margin:8px 0 3px;font-size:.9rem;line-height:1.55}
+.match-interpretation {margin-bottom:10px;padding:8px 10px;border-left:2px solid #c89251;border-radius:6px;background:#182b3b}
+.match-interpretation .outlook-angle {margin:0}
+.interpretation-watch {margin:6px 0 0;color:var(--muted);font-size:.83rem;line-height:1.5}
+.interpretation-watch .analysis-keyword {color:#b7d9ef}
 .outlook-evidence {margin-top:7px}
 .outlook-evidence>summary {width:fit-content;padding:4px 0;font-size:.85rem}
 .outlook-evidence .context-body {padding:8px 0 0}

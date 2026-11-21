@@ -3,7 +3,7 @@ import { fixtureHistoryHref, renderHistoryPage } from "./history-report.js";
 import { snapshot, sources, games } from "./data.js";
 import { research } from "./research.js";
 import { publishedMatchInfo, renderSchedule, withOfficialStatus } from "./schedule.js";
-import { fetchAutomaticContext, renderOutlook, renderWeatherFacts } from "./auto-context.js";
+import { fetchAutomaticContext, renderOutlook, renderWeatherFacts, outlookInterpretations } from "./auto-context.js";
 import { curatedWeatherVisual, weatherPanel } from "./match-visuals.js";
 
 const main = document.querySelector("#main");
@@ -146,8 +146,9 @@ function loadBriefingOutlook(container,game) {
       const packet = await fetchAutomaticContext(roundId);
       const context = packet?.contexts?.[number];
       if (context) {
-        if (context.outlook || context.matchAngle) target.innerHTML = renderOutlook(context.outlook,false,fixtureHistoryHref(number,roundId),
-          {angle:context.matchAngle,notes:context.records ?? []});
+        const interpretations = outlookInterpretations(context);
+        if (context.outlook || context.matchAngle || interpretations.some(Boolean)) target.innerHTML = renderOutlook(context.outlook,false,fixtureHistoryHref(number,roundId),
+          {angle:context.matchAngle,interpretations,notes:context.records ?? []});
         const weather = renderWeatherFacts(context);
         const weatherSlot = container.querySelector("[data-brief-weather]");
         if (weatherSlot && weather) weatherSlot.innerHTML = weather;

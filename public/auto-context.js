@@ -98,11 +98,31 @@ function renderFact(fact) {
     ${fact.category === "players" || value == null || value === ""
       ? `<h4>${escape(title)}</h4>${value ? `<p class="context-number">${escape(value)}</p>` : ""}`
       : `<h4 class="context-number">${escape(value)}</h4><p class="context-basis">${escape(title)}</p>`}
+    ${renderInterpretation(fact.insight,true)}
     ${text ? `<p>${escape(text)}</p>` : ""}
     ${date ? `<p class="context-basis">${escape(formatDate(date))}</p>` : ""}
     ${names.length ? `<details class="weather-evidence"><summary>선수 이름 원문</summary><p>${names.map(escape).join(" · ")}</p></details>` : ""}
     ${sourceLink(source)}${sourceLink(reference)}
     </section>`;
+}
+
+function analysisLine(lead, body, className) {
+  return `<p class="${className}"><strong class="analysis-keyword">${escape(lead)}</strong>${body ? ` <span>${escape(body)}</span>` : ""}</p>`;
+}
+
+function renderInterpretation(read, detail = false) {
+  if (!read?.headline || !read.explanation) return "";
+  const line = analysisLine(read.headline, read.explanation, "outlook-angle");
+  if (!detail) return line;
+  return `<div class="match-interpretation">${line}
+    ${read.watch ? analysisLine("중계에서 볼 점", read.watch, "interpretation-watch") : ""}
+  </div>`;
+}
+
+export function outlookInterpretations(context) {
+  const factors = Array.isArray(context?.factors) ? context.factors : [];
+  const playerRead = factors.find(fact => fact?.category === "players" && fact.insight)?.insight;
+  return [context?.weatherRead, context?.scheduleRead, playerRead];
 }
 
 export function renderMatchFlow(context, cancelled = false) {
@@ -112,7 +132,7 @@ export function renderMatchFlow(context, cancelled = false) {
   const published = flow?.published ? flow.published.replaceAll("-", ".") : "";
   return `<section class="venue-flow">
     <span>경기 양상${context?.fixture?.status === "finished" ? " · 경기 전 자료 기준" : ""}</span>
-    <h4>${escape(flow?.headline ?? "득점 흐름을 비교할 경기 기록을 확인 중입니다.")}</h4>
+    <h4 class="${flow?.headline ? "analysis-keyword" : ""}">${escape(flow?.headline ?? "득점 흐름을 비교할 경기 기록을 확인 중입니다.")}</h4>
     ${flow?.basis ? `<p>${escape(flow.basis)}</p>` : ""}
     ${published ? `<div class="venue-flow-source"><time datetime="${escape(flow.published)}">${escape(published)} 발표</time>${sourceLink(flow.source)}</div>` : ""}
   </section>`;
@@ -158,7 +178,7 @@ export function weatherFacts(context) {
 }
 
 export function renderWeatherFacts(context) {
-  return weatherFacts(context).map(renderFact).join("");
+  return renderInterpretation(context?.weatherRead,true) + weatherFacts(context).map(renderFact).join("");
 }
 
 export function automaticCards(match, round, context, existingIds, card, opened) {
@@ -180,16 +200,18 @@ export function automaticCards(match, round, context, existingIds, card, opened)
       const weather = weatherFacts(context);
       if (weather.length) present.add(category);
       const visual = weatherVisual(weather[0]);
-      supplemental.push(card(category,title,icon,weatherHint(visual),weather.length ? weather.map(renderFact).join("") : weatherPanel(visual),opened));
+      supplemental.push(card(category,title,icon,weatherHint(visual),weather.length ? renderWeatherFacts(context) : weatherPanel(visual),opened));
       continue;
     }
-    if (items?.length) {
+    const scheduleRead = category === "schedule" ? context?.scheduleRead : null;
+    if (items?.length || scheduleRead) {
       present.add(category);
       const venue = category === "venue" ? items.find(fact=>Array.isArray(fact.venueFacts)) : null;
       const titleText = venue ? "구장 특징" : category === "venue" && items.every(fact=>fact.title==="개최 도시") ? "경기장 위치" : title;
       const hintText = venue ? venue.venueFacts.slice(0,2).map(([,value])=>value).join(" · ") : hint;
       const flow = category === "venue" ? renderMatchFlow(context,match.voided) : "";
-      supplemental.push(card(category,titleText,icon,hintText,flow + items.map(renderFact).join(""),opened));
+      const reading = renderInterpretation(scheduleRead,true);
+      supplemental.push(card(category,titleText,icon,hintText,flow + reading + (items ?? []).map(renderFact).join(""),opened));
     }
   }
 
@@ -217,18 +239,19 @@ function renderResult(result, archived) {
   if (outcomes.length < 2) return "";
   return `<section class="result-outlook" aria-label="승부 전망">
     <p class="result-outlook-label"><strong>승부 전망</strong> <span>${escape(result.label)}${archived ? " · 경기 전 기록 기준" : ""}</span></p>
-    <p class="result-outlook-headline">${escape(result.headline)}</p>
+    ${analysisLine(result.headline,"","result-outlook-headline")}
     <ul class="result-outcomes">
       ${outcomes.map(({side,percent})=>`<li data-side="${side}"><span>${names[side]}</span><b>${percent}%</b></li>`).join("")}
     </ul>
   </section>`;
 }
 
-export function renderOutlook(outlook, cancelled = false, historyHref = "", {angle, notes = [], extraEvidence = "", openEvidence = false} = {}) {
+export function renderOutlook(outlook, cancelled = false, historyHref = "", {angle, interpretations = [], notes = [], extraEvidence = "", openEvidence = false} = {}) {
   if (cancelled) return "";
   const pose = scoringPose(outlook);
   const label = outlook?.kind === "market" ? "베트맨 배당 참고" : "경기 예상";
   const headline = outlook?.headline ?? "현재 확인된 자료로는 득점 전망을 내기 어렵습니다";
+  const [lead, ...summary] = headline.split(" · ");
   const result = outlook?.result;
   const credits = sourceCredits([angle?.source,result?.source,outlook?.source,...(outlook?.evidence?.sources ?? [])]);
   const evidence = [
@@ -244,11 +267,12 @@ export function renderOutlook(outlook, cancelled = false, historyHref = "", {ang
       ${mascotFigure(scoringWord(outlook,pose),pose)}
       <div class="outlook-main">
         <p class="outlook-label">${label}${outlook?.archived ? " · 경기 전 기록 기준" : ""}</p>
-        <p class="outlook-line">${escape(headline)}</p>
+        ${analysisLine(lead, summary.length ? "· " + summary.join(" · ") : "", "outlook-line")}
         ${outlook?.range ? `<p class="outlook-range">예상 범위 ${escape(outlook.range)}</p>` : ""}
       </div>
     </div>` : ""}
-    ${angle?.summary ? `<p class="outlook-angle"><span>${escape(angle.label)}</span> <strong>${escape(angle.summary)}</strong></p>` : ""}
+    ${angle?.summary ? analysisLine(angle.label,angle.summary,"outlook-angle") : ""}
+    ${interpretations.map(read => renderInterpretation(read)).join("")}
     <div class="outlook-links">
       ${historyHref ? `<a class="history-shortcut" href="${escape(historyHref)}">경기 이력 보기</a>` : ""}
     </div>

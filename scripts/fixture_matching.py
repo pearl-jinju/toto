@@ -671,6 +671,7 @@ def analyze_fixture(fixture, event, events, verified=()):
             "home": summarize([game for game in games if game[2] == "홈"][:5]),
             "away": summarize([game for game in games if game[2] == "원정"][:5]),
             "lastPlayed": games[0][0].isoformat(),
+            "lastPlayedDateOnly": bool(games[0][-1].get("dateOnly")),
             "source": known_source(games[0][-1]),
         })
     if not recent:

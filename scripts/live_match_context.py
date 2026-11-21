@@ -15,6 +15,8 @@ from scripts.provider_match_stats import get_match_stats
 from scripts.provider_standings import get_standings
 from scripts.score_outlook import build_outlook
 from scripts.match_angles import build_match_angle
+from scripts.match_environment import interpret_match_environment
+from scripts.match_schedule_read import interpret_match_schedule
 from scripts.venue_weather import enrich_fixtures
 
 
@@ -82,6 +84,7 @@ def previous_round_fixtures(fixtures, current, source):
         away_now = current["away"] == team
         changes.append({
             "category": "schedule", "title": team + "의 회차 내 일정", "value": f"시작 간격 약 {hours}시간",
+            "team": team, "gapHours": hours,
             "text": f"같은 프로토 회차의 {other}전에서 이번 경기까지의 시작 간격입니다. "
                     + ("원정 경기가 연달아 잡혀 있어 교체와 출전 시간 관리가 달라질 수 있습니다." if away_then and away_now
                        else "경기가 연달아 잡히면 교체 시점이나 출전 시간 관리가 달라질 수 있습니다."),
@@ -289,7 +292,8 @@ class ContextWorker:
             if fixture.get("status") == "cancelled":
                 match_stats = {}
             factors = list(venue_factors.get(number, venue_factors.get(str(number), [])))
-            factors.extend(previous_round_fixtures(fixtures, fixture, [f"베트맨 · {feed['round']}회차 일정", feed["source"]]))
+            schedule = previous_round_fixtures(fixtures, fixture, [f"베트맨 · {feed['round']}회차 일정", feed["source"]])
+            factors.extend(schedule)
             if scoring:
                 factors.append({**scoring, "category": "scoring"})
             if provider_event:
@@ -317,6 +321,8 @@ class ContextWorker:
                 },
             }
             merged = combine_context(old_contexts.get(str(number), {}), details)
+            merged["weatherRead"] = interpret_match_environment(fixture, merged["factors"])
+            merged["scheduleRead"] = interpret_match_schedule(fixture, merged["factors"], merged)
             contexts[str(number)] = merged
             verified += bool(provider_event)
             analysis_count += bool(merged.get("recent") or merged.get("records") or

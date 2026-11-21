@@ -2,7 +2,7 @@ import { sourceCredit, sourceLink as link } from "./source-links.js";
 import { fixtureHistoryHref } from "./history-report.js";
 import { fixtureContext } from "./fixture-context.js";
 import { sources } from "./data.js";
-import { automaticCards, renderAutomaticFactors, renderMatchFlow, renderOutlook, weatherFacts } from "./auto-context.js";
+import { automaticCards, outlookInterpretations, renderAutomaticFactors, renderMatchFlow, renderOutlook, weatherFacts } from "./auto-context.js";
 import { renderComparisonGraphic } from "./team-comparison.js";
 import { renderHeadToHead, renderMatchStatistics, renderStandings } from "./match-basics.js";
 import { curatedWeatherVisual, mascotArt, weatherHint, weatherPanel } from "./match-visuals.js";
@@ -209,7 +209,7 @@ export function teamContextPanels(match, round, {detail, editorial, auto, standi
   const notes = extra.records.filter(([title])=>!extra.headToHead?.length || !/^맞대결 \d+경기 ·/.test(title));
   return `<details class="match-context" data-keep-open="context"${opened.has("context") ? " open" : ""}>
     <summary><span>상세 정보</span><span class="context-count">${allCards.length}개 항목</span><span class="context-plus" aria-hidden="true"></span></summary>
-    ${renderOutlook(auto?.outlook ?? (match.total ? {kind:"market",headline:`베트맨 기준 ${match.total.line}${match.sport === "축구" ? "골" : "점"} · ${match.total.under === match.total.over ? "언더·오버 배당이 같습니다" : `${match.total.under < match.total.over ? "언더" : "오버"} 쪽 배당이 낮습니다`}`,basis:`언더 ${match.total.under.toFixed(2)} · 오버 ${match.total.over.toFixed(2)}`,source:["베트맨 · 경기 배당",round.source]} : null), match.voided,fixtureHistoryHref(match.number,roundId),{angle:auto?.matchAngle,notes,
+    ${renderOutlook(auto?.outlook ?? (match.total ? {kind:"market",headline:`베트맨 기준 ${match.total.line}${match.sport === "축구" ? "골" : "점"} · ${match.total.under === match.total.over ? "언더·오버 배당이 같습니다" : `${match.total.under < match.total.over ? "언더" : "오버"} 쪽 배당이 낮습니다`}`,basis:`언더 ${match.total.under.toFixed(2)} · 오버 ${match.total.over.toFixed(2)}`,source:["베트맨 · 경기 배당",round.source]} : null), match.voided,fixtureHistoryHref(match.number,roundId),{angle:auto?.matchAngle,interpretations:outlookInterpretations(auto),notes,
       extraEvidence:epl ? eplSlot("record") : "",openEvidence:opened.has("outlook-evidence")})}
     <div class="context-cards">${allCards.join("")}</div>
   </details>`;

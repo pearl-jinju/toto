@@ -240,7 +240,82 @@ def _report_index(season, timeout):
     return index
 
 
-def _injury_factors(event, reports, now):
+def _recent_games(event, team_id, previous):
+    return sorted(
+        (
+            row for row in previous if row["start"] < event["start"] and row["complete"]
+            and team_id in (row["home_id"], row["away_id"])
+        ),
+        key=lambda row: row["start"],
+        reverse=True,
+    )[:5]
+
+
+def _injury_insight(event, team, releases, previous, boxes):
+    code = _REPORT_TEAM_NAMES.get(team, team)
+    side = next((side for side, event_code in zip(("home", "away"), event["_codes"])
+                 if code in {event_code, _REPORT_CODES.get(event_code, event_code)}), None)
+    if side is None:
+        return None
+
+    statuses = {}
+    for player, status, _ in releases:
+        if player and status:
+            statuses.setdefault(player, set()).add(status)
+    ruled_out = {name for name, states in statuses.items() if states == {"Out"}}
+    if not ruled_out:
+        return None
+
+    team_id = event[f"{side}_id"]
+    team_key = team_id.rsplit(":", 1)[1]
+    appearances, verified_games = {}, set()
+    for game in _recent_games(event, team_id, previous):
+        game_id = game["id"].rsplit(":", 1)[1]
+        if game_id in verified_games:
+            continue
+        box = boxes.get((game_id, team_key), ())
+        score_index = 0 if game["home_id"] == team_id else 1
+        if (len({player for player, *_ in box}) != len(box)
+                or sum(points for _, points, _, _ in box) != game["score"][score_index]):
+            continue
+        verified_games.add(game_id)
+        for player, points, assists, _ in box:
+            if player in ruled_out:
+                appearances.setdefault(player, []).append((points, assists, game_id))
+    candidates = []
+    for player, rows in appearances.items():
+        count = len(rows)
+        if count >= 3:
+            points = sum(row[0] for row in rows) / count
+            assists = sum(row[1] for row in rows) / count
+            if points >= 15 or assists >= 5:
+                candidates.append((max(points / 15, assists / 5), count, player, points, assists, rows[0][2]))
+    if not candidates:
+        return None
+
+    _, count, player, points, assists, latest_game = max(candidates)
+    name = player_name_ko(player)
+    if points >= 15 and assists >= 5:
+        workload = "득점과 동료의 득점 기회를 함께 채워야 합니다."
+        watch = "누가 슛을 더 가져가고, 누가 동료에게 슛 기회를 만드는지 보세요."
+    elif points >= 15:
+        workload = "최근 꾸준히 맡아 온 득점을 다른 선수들이 나눠야 합니다."
+        watch = "어느 선수가 슛 시도를 더 가져가는지, 벤치 득점이 얼마나 나오는지 보세요."
+    else:
+        workload = "동료에게 슛 기회를 만드는 역할을 다른 선수가 맡아야 합니다."
+        watch = "공을 주로 운반하는 선수가 바뀌는지, 초반 어시스트와 턴오버를 보세요."
+    return {
+        "insight": {
+            "headline": f"{name} 결장 · {workload}",
+            "explanation": f"경기 전 NBA 출전 보고서 기준입니다. 기록이 확인된 팀의 최근 {len(verified_games)}경기 중 "
+                           f"{count}경기에 출전해 평균 {points:.1f}득점·{assists:.1f}도움을 기록했습니다.",
+            "watch": watch,
+        },
+        "reference": ["ESPN · 직전 출전 경기 기록", f"https://www.espn.com/nba/boxscore/_/gameId/{latest_game}"],
+    }
+
+
+def _injury_factors(event, reports, now, previous=(), boxes=None):
     try:
         local = datetime.fromisoformat(event["_local_start"])
     except (TypeError, ValueError):
@@ -269,9 +344,11 @@ def _injury_factors(event, reports, now):
         original_names = [player for player, display, _ in shown if player != display]
         if len(latest) > 3:
             value += f" 외 {len(latest)-3}명"
+        context = _injury_insight(event, team, releases[timestamp], previous, boxes or {})
         factors.append({
             "category": "players",
             "title": f"{TEAM_NAMES.get(_REPORT_TEAM_NAMES.get(team), team)} 출전 보고",
+            **(context or {}),
             **({"originalNames": original_names} if original_names else {}),
             "value": value,
             "text": "경기 전에 제출된 NBA 출전 상태입니다. 보고 시각 이후 선발은 바뀔 수 있습니다.",
@@ -285,14 +362,7 @@ def _injury_factors(event, reports, now):
 
 
 def _leader_factor(event, team, team_id, previous, boxes):
-    recent = sorted(
-        (
-            row for row in previous if row["start"] < event["start"] and row["complete"]
-            and team_id in (row["home_id"], row["away_id"])
-        ),
-        key=lambda row: row["start"],
-        reverse=True,
-    )[:5]
+    recent = _recent_games(event, team_id, previous)
     stats = {}
     for row in recent:
         for player, points, assists, _ in boxes.get((row["id"].rsplit(":", 1)[1], team_id.rsplit(":", 1)[1]), []):
@@ -346,8 +416,8 @@ def _with_factors(events, fixtures, timeout):
         boxes = {season: pool.submit(_box_index, season, timeout) for season in seasons}
         for event in targets:
             season = event["_season"]
-            factors = _injury_factors(event, reports[season].result(), now)
             box_index = boxes[season].result()
+            factors = _injury_factors(event, reports[season].result(), now, events, box_index)
             if event["complete"]:
                 lineups = _lineups(event, box_index)
                 if lineups:

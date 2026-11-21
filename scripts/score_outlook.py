@@ -206,10 +206,6 @@ def build_outlook(fixture, matched_event, events, factors, source, verified=()):
         effect, n, hits, base_n, base_hits = adjustment
         probability = min(0.97, max(0.03, probability + effect))
         weather_note = f"비슷한 날씨의 같은 리그 경기 {n}개 중 {hits}개가 기준점 미만, 다른 조건은 {base_n}개 중 {base_hits}개였습니다."
-    elif weather.get("forecastTag") in {"wind", "rain", "fog", "frost", "heat"}:
-        weather_note = weather["text"].split(". ")[0] + "."
-        if sport == "축구" and criterion and probability >= 0.525 and weather["forecastTag"] == "wind":
-            weather_note = "강풍이 실제 구장에서도 이어지면 높은 패스가 흔들려 저득점 전망에 힘을 보탤 수 있습니다."
 
     expected = f"{round(midpoint)}" if sport == "농구" else f"{midpoint:.1f}"
     description = direction(probability, criterion, unit) if probability is not None else f"합계 {expected}{unit} 안팎 예상"

@@ -489,8 +489,8 @@ details[open] > summary .context-plus::after {transform:none}
 .overlay-heading small {font-size:.72rem;color:var(--muted);line-height:1.15}
 .overlay-mascot {width:32px;height:32px;flex:none}
 @media(max-width:580px){
-  .schedule-top {padding-bottom:26px}
-  .schedule-topline {--perch-width:clamp(95px,29vw,130px);gap:6px;min-height:122px;border-radius:13px;padding:12px}
+  .schedule-top {padding-top:8px;padding-bottom:16px}
+  .schedule-topline {--perch-width:clamp(76px,23vw,104px);gap:6px;min-height:96px;border-radius:13px;padding:8px 10px}
   .schedule-mascot {inset-inline-end:4px}
   .schedule-topline .schedule-subtitle {font-size:.8rem}
   .schedule-topline .overlay-launch {margin-top:8px;padding-inline:9px}
@@ -823,3 +823,6 @@ a.overlay-launch {text-decoration:none}
 .fixture-outlook-heading time {color:var(--muted);font-size:.74rem;font-variant-numeric:tabular-nums}
 .fixture-outlook>.outlook-box {margin:0}
 .fixture-outlook-loading {margin:0;padding:9px 11px;border:1px solid #34505e;border-radius:8px;color:var(--muted);font-size:.85rem}
+
+.schedule-empty-actions {display:flex;flex-wrap:wrap;gap:8px}
+.schedule-empty-actions button:first-child {border-color:#538c82;color:#aef8e2}

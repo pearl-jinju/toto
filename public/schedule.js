@@ -273,7 +273,7 @@ export function renderSchedule(main, briefings, params) {
     <div class="schedule-topline">
       <div class="schedule-copy">
         <h1>매치인덱스</h1>
-        <p class="schedule-subtitle">경기 흐름과 주요 변수를 한눈에</p>
+        <p class="schedule-subtitle">오늘 경기 점수·전망·복기</p>
         ${launchesAndroid
           ? `<a class="overlay-launch" id="overlay-launch" href="${text(androidOverlayIntent(location))}">오버레이로 보기</a>`
           : '<button type="button" class="overlay-launch" id="overlay-launch" aria-expanded="false">오버레이로 보기</button>'}
@@ -410,7 +410,7 @@ export function renderSchedule(main, briefings, params) {
       : view === "all" ? [["회차 전체", matching, limit]]
       : [...(live.length ? [["진행 중",live,live.length]] : []), ["다가오는 경기", upcoming, limit],
         ["결과 대기", pending.slice(-4), 4], ["최근 종료", completed.slice(0, 6), 6]];
-    const groups = lists.filter(([, list], index) => list.length || index === 0);
+    const groups = lists.filter(([, list]) => list.length);
     const sponsorGroup = tokens.length ? -1 : groups.findIndex(([,list,max]) => Math.min(list.length,max) >= 6);
     if (rail) rail.hidden = sponsorGroup < 0;
     results.innerHTML = groups.map(([label, list, max],index) => `<section class="schedule-group">
@@ -419,6 +419,13 @@ export function renderSchedule(main, briefings, params) {
       ${list.length > max ? '<button class="schedule-more" type="button">경기 더 보기</button>' : ""}
       ${view === "schedule" && label === "최근 종료" && completed.length > list.length ? '<button class="schedule-more" data-show-finished type="button">종료 경기 전체 보기</button>' : ""}
     </section>`).join("");
+    if (!groups.length) results.innerHTML = `<div class="schedule-empty">
+      <p role="status">조건에 맞는 경기가 없습니다.</p>
+      <div class="schedule-empty-actions">
+        <button type="button" data-empty-action="today">오늘 경기 보기</button>
+        ${tokens.length || sport !== "전체" || chosenDate ? '<button type="button" data-empty-action="reset">필터 초기화</button>' : ""}
+      </div>
+    </div>`;
     if (feed) results.querySelector("[data-sponsor-feed]")?.append(feed);
     if (focusNumber) {
       const row = results.querySelector(`[data-number="${focusNumber}"]`);
@@ -500,6 +507,18 @@ export function renderSchedule(main, briefings, params) {
   if (androidChoice && params.get("overlay") === "android") androidChoice.open();
 
   results.addEventListener("click", event => {
+    const recovery = event.target.closest("[data-empty-action]");
+    if (recovery) {
+      chosenDate = recovery.dataset.emptyAction === "today" ? koreaDateKey() : "";
+      search.value = "";
+      select.selectedIndex = 0;
+      sport = "전체";
+      view = chosenDate ? "schedule" : "all";
+      limit = pageSize;
+      render();
+      (results.querySelector(".fixture > summary") ?? search).focus();
+      return;
+    }
     const button = event.target.closest(".schedule-more");
     if (!button) return;
     const showFinished = button.hasAttribute("data-show-finished");

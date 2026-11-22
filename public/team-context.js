@@ -261,7 +261,7 @@ function stadium(venue, onSite) {
 }
 
 export function teamContextPanels(match, round, {detail, editorial, auto, standings, detailSponsor = "", opened = new Set()} = {}) {
-  if (!match) return "";
+  if (!match) return {details:"",outlook:""};
   const roundId = (round.year % 100)*10000 + round.round;
   const scoped = roundId === fixtureContext.roundId;
   const curated = scoped ? fixtureContext.numbers[match.number] ?? {} : {};
@@ -312,19 +312,28 @@ export function teamContextPanels(match, round, {detail, editorial, auto, standi
     basis:`언더 ${match.total.under.toFixed(2)} · 오버 ${match.total.over.toFixed(2)}`,
     source:["베트맨 · 경기 배당",round.source],
   } : null);
-  const pregame = match.live?.state === "live";
-  const displayForecast = forecast && pregame ? {...forecast,archived:true} : forecast;
-  return `<details class="match-context" data-keep-open="context"${opened.has("context") ? " open" : ""}>
+  const started = match.live?.state === "live" || Date.parse(match.startsAt) <= Date.now();
+  const displayForecast = forecast && started ? {...forecast,archived:true} : forecast;
+  const heading = started ? "경기 전 전망" : "현재 전망";
+  const checkedAt = Date.parse(auto?.updatedAt);
+  const outlook = completed || match.voided ? "" : `<section class="fixture-outlook" aria-label="${heading}">
+    <div class="fixture-outlook-heading"><h4>${heading}</h4>
+      ${Number.isFinite(checkedAt) ? `<time datetime="${escape(auto.updatedAt)}">자료 확인 ${quickMarketDate.format(new Date(checkedAt))}</time>` : ""}
+    </div>
+    ${!displayForecast && !auto ? '<p class="fixture-outlook-loading">전망 자료를 확인 중입니다.</p>' :
+      renderOutlook(displayForecast,false,fixtureHistoryHref(match.number,roundId),{angle:auto?.matchAngle,interpretations:outlookInterpretations(auto),notes,
+        extraEvidence:epl ? eplSlot("record") : "",openEvidence:opened.has("outlook-evidence")})}
+  </section>`;
+  const details = `<details class="match-context" data-keep-open="context"${opened.has("context") ? " open" : ""}>
     <summary>
       <span class="context-summary-guide" aria-hidden="true">${mascotArt("standing",true)}</span>
       <strong class="context-summary-title">상세 정보</strong>
       <span class="context-count">${allCards.length}개 항목</span><span class="context-plus" aria-hidden="true"></span>
     </summary>
-    ${completed ? "" : renderOutlook(displayForecast, match.voided,fixtureHistoryHref(match.number,roundId),{angle:auto?.matchAngle,interpretations:outlookInterpretations(auto),notes,
-      extraEvidence:epl ? eplSlot("record") : "",openEvidence:opened.has("outlook-evidence")})}
     <div class="context-cards">${allCards.join("")}</div>
     ${detailSponsor}
   </details>`;
+  return {details,outlook};
 }
 
 function comparisonSide(name, [played,gf,ga] = [], scope) {

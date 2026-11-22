@@ -118,13 +118,14 @@ function quickAnalysis(match, detail, roundData, opened, auto, standings, {inOve
     historyHref:fixtureHistoryHref(match.number,officialRoundId(roundData)),
     source:[`베트맨 · 승부식 ${roundData.round}회차`,roundData.source],stats:context?.matchStats,
   }) : "";
-  const contextPanels = teamContextPanels(match, roundData, {detail, editorial:extra, opened, auto:context, standings, detailSponsor});
+  const {details,outlook} = teamContextPanels(match, roundData, {detail, editorial:extra, opened, auto:context, standings, detailSponsor});
 
   return `<div class="fixture-analysis">
     ${finished ? quickOdds + recap : ""}
     ${match.live?.state === "live" && score ? renderLiveAnalysis(match, match.live) : ""}
     ${liveEvidence(match.live)}
-    ${inOverlay ? "" : contextPanels}
+    ${inOverlay ? "" : details}
+    ${outlook}
     ${summary ? `<p class="quick-summary">${text(summary)}</p>` : ""}
     ${comparison.length ? `<dl class="quick-comparison">${comparison.map(([label, home, away]) =>
       `<div><dt>${text(label)}</dt><dd><strong>${text(home)}</strong><span>vs</span><strong>${text(away)}</strong></dd></div>`).join("")}</dl>` : ""}
@@ -135,7 +136,7 @@ function quickAnalysis(match, detail, roundData, opened, auto, standings, {inOve
     </dl>
     ${finished ? "" : quickOdds}
     ${!summary && !score && !quickOdds ? '<p class="muted">아직 확인된 배당과 팀 비교 자료가 없습니다.</p>' : ""}
-    ${inOverlay ? contextPanels : ""}
+    ${inOverlay ? details : ""}
     <div class="quick-actions">${detail && !inOverlay ? `<a class="quick-detail" href="?match=${text(detail.id)}">상세 브리핑</a>` : ""}
       <details class="fixture-sources" data-keep-open="sources"${opened.has("sources") ? " open" : ""}><summary>출처</summary><div>${sourceLinks.join("")}</div></details></div>
   </div>`;
@@ -233,7 +234,7 @@ export async function fetchPublishedResult(game) {
 export function renderSchedule(main, briefings, params) {
   let roundData = publishedRound;
   let refreshing = false;
-  let checkingContext = false;
+  let checkingContextRound = null;
   let nextContextCheck = 0;
   let contextPacket = null;
   let livePacket = null;
@@ -514,9 +515,9 @@ export function renderSchedule(main, briefings, params) {
   }
 
   async function refreshContext() {
-    if (checkingContext || viewIsHidden() || Date.now() < nextContextCheck) return;
     const roundId = officialRoundId(roundData);
-    checkingContext = true;
+    if (checkingContextRound === roundId || viewIsHidden() || Date.now() < nextContextCheck) return;
+    checkingContextRound = roundId;
     try {
       const packet = await fetchAutomaticContext(roundId);
       if (officialRoundId(roundData) !== roundId) return;
@@ -526,9 +527,9 @@ export function renderSchedule(main, briefings, params) {
       }
       nextContextCheck = Date.now() + (packet ? 120_000 : 20_000);
     } catch {
-      nextContextCheck = Date.now() + 20_000;
+      if (officialRoundId(roundData) === roundId) nextContextCheck = Date.now() + 20_000;
     } finally {
-      checkingContext = false;
+      if (checkingContextRound === roundId) checkingContextRound = null;
     }
   }
 
@@ -593,6 +594,7 @@ export function renderSchedule(main, briefings, params) {
 
   function tick() {
     refresh();
+    refreshContext();
     refreshLive();
   }
 

@@ -816,3 +816,10 @@ a.overlay-launch {text-decoration:none}
 .post-match-deltas [data-verdict=different] strong{color:#e8c58d}
 .post-match-links{display:flex;flex-wrap:wrap;gap:5px 8px}
 .post-match-links>*{font-size:.73rem}
+
+.fixture-outlook {margin:12px 0}
+.fixture-outlook-heading {display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:3px 8px;margin-bottom:6px}
+.fixture-outlook-heading h4 {margin:0;color:#d7faf1;font-size:.94rem}
+.fixture-outlook-heading time {color:var(--muted);font-size:.74rem;font-variant-numeric:tabular-nums}
+.fixture-outlook>.outlook-box {margin:0}
+.fixture-outlook-loading {margin:0;padding:9px 11px;border:1px solid #34505e;border-radius:8px;color:var(--muted);font-size:.85rem}

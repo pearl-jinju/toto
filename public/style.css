@@ -826,3 +826,13 @@ a.overlay-launch {text-decoration:none}
 
 .schedule-empty-actions {display:flex;flex-wrap:wrap;gap:8px}
 .schedule-empty-actions button:first-child {border-color:#538c82;color:#aef8e2}
+
+#schedule-dates.date-roller {position:relative;isolation:isolate}
+#schedule-dates .date-roller-arrow {position:absolute;z-index:1;inset-block:0;display:grid;place-items:center;min-height:44px;width:44px;padding:0;border:0;border-radius:8px;background:linear-gradient(90deg,#142737 65%,#142737e8);color:#aaf5df;cursor:pointer}
+#schedule-dates .date-roller-arrow[data-direction=previous] {inset-inline-start:0}
+#schedule-dates .date-roller-arrow[data-direction=next] {inset-inline-end:0}
+#schedule-dates .date-roller-arrow::before {content:"";width:9px;height:9px;border:solid currentColor;border-width:2px 2px 0 0;transform:translateX(-2px) rotate(45deg)}
+#schedule-dates .date-roller-arrow[data-direction=previous]::before {transform:translateX(2px) rotate(-135deg)}
+#schedule-dates .date-roller-arrow:not(:disabled):hover {background:#244250;color:#eafffa}
+#schedule-dates .date-roller-arrow:disabled {color:#66808e;cursor:default}
+#schedule-dates .date-roller-arrow:focus-visible {outline-offset:-3px}

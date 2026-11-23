@@ -27,6 +27,21 @@ export function mountDateRoller(container, onChange) {
   container.classList.add("date-roller");
   container.replaceChildren(track);
 
+  const controls = container.id === "schedule-dates" ? [-1,1].map(step=>{
+    const button = owner.createElement("button");
+    button.type = "button";
+    button.className = "date-roller-arrow";
+    button.dataset.direction = step < 0 ? "previous" : "next";
+    button.setAttribute("aria-label",step < 0 ? "이전 날짜" : "다음 날짜");
+    button.disabled = true;
+    button.addEventListener("click",()=>{
+      selection(index + step,true);
+      aligned(index);
+    });
+    container.append(button);
+    return button;
+  }) : [];
+
   let values = [];
   let labels = [];
   let items = [];
@@ -51,6 +66,7 @@ export function mountDateRoller(container, onChange) {
     items[index]?.classList.add("is-active");
     track.setAttribute("aria-valuenow",String(index));
     track.setAttribute("aria-valuetext",labels[index]);
+    controls.forEach((button,i)=>{button.disabled = i === 0 ? index === 0 : index >= items.length - 1;});
     if (notify && index !== previous) onChange(values[index]);
   }
 
